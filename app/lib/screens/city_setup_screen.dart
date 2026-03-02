@@ -87,76 +87,138 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Bazooka Setup')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Text(
-              'Choose your city',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Pick one city for MVP notifications. You can change it later.',
-            ),
-            const SizedBox(height: 24),
-            DropdownButtonFormField<String>(
-              key: const Key('languageDropdown'),
-              value: _selectedLanguageCode,
-              decoration: const InputDecoration(
-                labelText: 'Language',
-                border: OutlineInputBorder(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              const SizedBox(height: 16),
+              // Fun header image
+              Center(
+                child: Image.asset(
+                  'assets/icon.png',
+                  height: 120,
+                  width: 120,
+                  errorBuilder: (context, error, stackTrace) => const Icon(
+                    Icons.rocket_launch,
+                    size: 80,
+                    color: Color(0xFF1976D2),
+                  ),
+                ),
               ),
-              items: _languageOptions
-                  .map(
-                    (option) => DropdownMenuItem<String>(
-                      value: option.code,
-                      child: Text(option.displayName),
+              const SizedBox(height: 32),
+              Text(
+                'Welcome to Bazooka!',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF1976D2),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Pick your city for MVP notifications.\nYou can change it later.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Colors.black54,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 32),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(32),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
                     ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value == null) {
-                  return;
-                }
+                  ],
+                ),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      key: const Key('languageDropdown'),
+                      value: _selectedLanguageCode,
+                      decoration: const InputDecoration(
+                        labelText: 'Language',
+                        prefixIcon: Icon(
+                          Icons.language,
+                          color: Color(0xFFFF9800),
+                        ),
+                      ),
+                      items: _languageOptions
+                          .map(
+                            (option) => DropdownMenuItem<String>(
+                              value: option.code,
+                              child: Text(
+                                option.displayName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
 
-                setState(() {
-                  _selectedLanguageCode = value;
-                });
-              },
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              key: const Key('cityDropdown'),
-              value: _selectedCityKey,
-              decoration: const InputDecoration(
-                labelText: 'City',
-                border: OutlineInputBorder(),
-              ),
-              items: _cityOptions
-                  .map(
-                    (option) => DropdownMenuItem<String>(
-                      value: option.key,
-                      child: Text('${option.displayName} (${option.key})'),
+                        setState(() {
+                          _selectedLanguageCode = value;
+                        });
+                      },
                     ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedCityKey = value;
-                });
-              },
-            ),
-            const Spacer(),
-            ElevatedButton(
-              key: const Key('saveCityButton'),
-              onPressed: _selectedCityKey == null || _isSaving
-                  ? null
-                  : _saveSelection,
-              child: Text(_isSaving ? 'Saving...' : 'Save city'),
-            ),
-          ],
+                    const SizedBox(height: 20),
+                    DropdownButtonFormField<String>(
+                      key: const Key('cityDropdown'),
+                      value: _selectedCityKey,
+                      decoration: const InputDecoration(
+                        labelText: 'City',
+                        prefixIcon: Icon(
+                          Icons.location_city,
+                          color: Color(0xFFFF9800),
+                        ),
+                      ),
+                      items: _cityOptions
+                          .map(
+                            (option) => DropdownMenuItem<String>(
+                              value: option.key,
+                              child: Text(
+                                '${option.displayName} (${option.key})',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedCityKey = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 48),
+              ElevatedButton(
+                key: const Key('saveCityButton'),
+                onPressed: _selectedCityKey == null || _isSaving
+                    ? null
+                    : _saveSelection,
+                child: Text(_isSaving ? 'Saving...' : 'LET\'S GO!'),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );

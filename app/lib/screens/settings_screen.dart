@@ -31,6 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late String _selectedLanguageCode;
   bool _isSavingLanguage = false;
   bool _isTestingNotification = false;
+  bool _isEnablingAutoOpen = false;
 
   @override
   void initState() {
@@ -121,6 +122,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
     Navigator.of(context).pop();
+  }
+
+  Future<void> _enableAutoOpenAlerts() async {
+    if (_isEnablingAutoOpen) {
+      return;
+    }
+
+    setState(() {
+      _isEnablingAutoOpen = true;
+    });
+
+    try {
+      final granted = await widget.pushService
+          .requestFullScreenIntentPermission();
+      if (!mounted) {
+        return;
+      }
+      final text = granted
+          ? 'Auto-open permission granted. Lock/turn off screen to test full-screen launch.'
+          : 'Auto-open permission not granted yet. Enable Full-screen notifications in Android settings.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not request auto-open permission: $error'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isEnablingAutoOpen = false;
+        });
+      }
+    }
   }
 
   @override
@@ -222,6 +260,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _isTestingNotification
                           ? 'Running test...'
                           : 'Run notification test',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Text(
+                    'Auto-open alerts',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Android only: allows full-screen notification launch when the screen is off/locked.',
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    key: const Key('enableFullScreenAlertsButton'),
+                    onPressed: _isEnablingAutoOpen
+                        ? null
+                        : _enableAutoOpenAlerts,
+                    icon: const Icon(Icons.screen_lock_portrait_outlined),
+                    label: Text(
+                      _isEnablingAutoOpen
+                          ? 'Opening settings...'
+                          : 'Enable auto-open alerts',
                     ),
                   ),
                 ],

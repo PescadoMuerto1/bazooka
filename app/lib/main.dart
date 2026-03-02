@@ -9,12 +9,8 @@ import 'package:app/services/push_service.dart';
 import 'package:app/state/app_settings.dart';
 
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage _) async {
-  try {
-    await Firebase.initializeApp();
-  } catch (_) {
-    // Initialization can fail in test/misconfigured environments; app still runs.
-  }
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await PushService.showBackgroundAlertNotification(message);
 }
 
 Future<void> main() async {
@@ -67,9 +63,66 @@ class _MyAppState extends State<MyApp> {
         return MaterialApp(
           title: 'Bazooka',
           theme: ThemeData(
+            useMaterial3: true,
             colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFFB3261E),
+              seedColor: const Color(0xFFFFC107), // Yellow background
+              primary: const Color(0xFF1976D2), // A much nicer deep blue
+              onPrimary: Colors.white,
+              secondary: const Color(0xFFFF9800), // Orange arms/legs
+              onSecondary: Colors.white,
+              surface: Colors.white,
             ),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFFFFC107),
+              foregroundColor: Colors.black87,
+              centerTitle: true,
+              elevation: 0,
+              titleTextStyle: TextStyle(
+                color: Colors.black87,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1976D2),
+                foregroundColor: Colors.white,
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(32),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 16,
+                  horizontal: 32,
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(
+                  color: Color(0xFF1976D2),
+                  width: 3,
+                ),
+              ),
+            ),
+            scaffoldBackgroundColor: const Color(0xFFFFF8E1),
           ),
           home: FutureBuilder<void>(
             future: _initialLoad,
@@ -101,6 +154,18 @@ class _LoadingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    final imageSize = MediaQuery.of(context).size.width * 0.58;
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFC107),
+      body: Center(
+        child: Image.asset(
+          'assets/splash.png',
+          width: imageSize.clamp(180.0, 280.0),
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) =>
+              const CircularProgressIndicator(color: Colors.black54),
+        ),
+      ),
+    );
   }
 }
