@@ -14,13 +14,37 @@
 4. Run app:
    - `flutter run`
 
+## Custom Alert Song (Android)
+
+To use a custom notification song, place your audio file at:
+
+- `app/android/app/src/main/res/raw/alert_song.mp3`
+
+Notes:
+- Resource name must be `alert_song`.
+- After changing channel sound, uninstall/reinstall the app (Android caches channel settings).
+- If file is missing, Android may fall back to default behavior.
+
 The app already includes:
 - `firebase_core` initialization on startup.
 - `firebase_messaging` token retrieval and refresh sync.
-- Background message registration (`FirebaseMessaging.onBackgroundMessage`).
+- Background message registration (`FirebaseMessaging.onBackgroundMessage`) that
+  triggers local full-screen notifications on Android.
 - Backend sync calls to:
   - `POST /register-device`
   - `PUT /subscription`
+
+## Closed-App Alert Behavior (Android)
+
+- Backend sends high-priority FCM data payloads.
+- The app creates a local notification with:
+  - custom sound (`alert_song`)
+  - full-screen intent
+- This allows alerts to appear prominently even when app UI is not open.
+
+Important:
+- Android/OS policy can still suppress full-screen launch in some situations.
+- iOS does not support forcing a full-screen app popup from a terminated state.
 
 ## Backend FCM Dependency
 

@@ -42,6 +42,10 @@ class _NoopPushSyncService implements PushSyncService {
   int syncCalls = 0;
 
   @override
+  Stream<PushAlertEvent> get alertEvents =>
+      const Stream<PushAlertEvent>.empty();
+
+  @override
   Future<void> initializeAndSync({
     required AppSettings settings,
     required AlertsApi apiClient,
@@ -58,7 +62,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Choose your city'), findsOneWidget);
+    expect(find.text('Welcome to Bazooka!'), findsOneWidget);
     expect(find.byKey(const Key('saveCityButton')), findsOneWidget);
   });
 

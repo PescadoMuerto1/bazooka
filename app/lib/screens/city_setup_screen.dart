@@ -103,7 +103,7 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
                   errorBuilder: (context, error, stackTrace) => const Icon(
                     Icons.rocket_launch,
                     size: 80,
-                    color: Color(0xFF03A9F4),
+                    color: Color(0xFF1976D2),
                   ),
                 ),
               ),
@@ -113,7 +113,7 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w900,
-                  color: const Color(0xFF03A9F4),
+                  color: const Color(0xFF1976D2),
                 ),
               ),
               const SizedBox(height: 8),

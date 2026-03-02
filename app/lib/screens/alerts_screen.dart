@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../models/alert_dto.dart';
+import 'notification_popup_screen.dart';
 import '../screens/settings_screen.dart';
 import '../services/api_client.dart';
 import '../services/push_service.dart';
@@ -35,6 +36,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
   List<AlertDto> _alerts = const <AlertDto>[];
   bool _isLoading = true;
   String? _errorMessage;
+  StreamSubscription<PushAlertEvent>? _pushAlertSubscription;
 
   Future<void> _openSettings() async {
     await Navigator.of(context).push(
@@ -57,6 +59,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
   @override
   void initState() {
     super.initState();
+    _pushAlertSubscription = widget.pushService.alertEvents.listen(
+      _handlePushAlertEvent,
+    );
     unawaited(
       widget.pushService.initializeAndSync(
         settings: widget.settings,
@@ -64,6 +69,28 @@ class _AlertsScreenState extends State<AlertsScreen> {
       ),
     );
     unawaited(_fetchAlerts());
+  }
+
+  @override
+  void dispose() {
+    _pushAlertSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _handlePushAlertEvent(PushAlertEvent event) {
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => NotificationPopupScreen(
+          title: event.title,
+          body: event.body,
+          areas: event.areas,
+        ),
+      ),
+    );
   }
 
   Future<void> _fetchAlerts() async {
@@ -186,24 +213,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
           final alert = _alerts[index];
-          final areaSummary = alert.areas.isEmpty
-              ? 'Unknown area'
-              : alert.areas.join(', ');
-          final description = alert.desc.isEmpty
-              ? 'No description'
-              : alert.desc;
 
-          return Card(
-            child: ListTile(
-              title: Text(alert.title),
-              subtitle: Text('$areaSummary\n$description'),
-              isThreeLine: true,
-              trailing: Text(
-                alert.category,
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-            ),
-          );
+          return Card(child: ListTile(title: Text(alert.title)));
         },
       ),
     );

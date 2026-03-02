@@ -151,12 +151,10 @@ export async function fanoutAlertToSubscribedDevices(
     try {
       await messaging.send({
         token: device.fcmToken,
-        notification: {
-          title: alert.title,
-          body: alert.desc.length > 0 ? alert.desc : "New Home Front alert"
-        },
         data: {
           alertId: alert.alertId,
+          title: alert.title,
+          body: alert.desc.length > 0 ? alert.desc : "New Home Front alert",
           category: alert.category,
           areas: alert.areas.join(",")
         },

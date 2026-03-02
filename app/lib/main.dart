@@ -9,12 +9,8 @@ import 'package:app/services/push_service.dart';
 import 'package:app/state/app_settings.dart';
 
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage _) async {
-  try {
-    await Firebase.initializeApp();
-  } catch (_) {
-    // Initialization can fail in test/misconfigured environments; app still runs.
-  }
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await PushService.showBackgroundAlertNotification(message);
 }
 
 Future<void> main() async {
@@ -70,11 +66,10 @@ class _MyAppState extends State<MyApp> {
             useMaterial3: true,
             colorScheme: ColorScheme.fromSeed(
               seedColor: const Color(0xFFFFC107), // Yellow background
-              primary: const Color(0xFF03A9F4), // Cyan/Blue Bazooka color
+              primary: const Color(0xFF1976D2), // A much nicer deep blue
               onPrimary: Colors.white,
               secondary: const Color(0xFFFF9800), // Orange arms/legs
               onSecondary: Colors.white,
-              background: const Color(0xFFFFF8E1), // Light pastel yellow
               surface: Colors.white,
             ),
             appBarTheme: const AppBarTheme(
@@ -91,7 +86,7 @@ class _MyAppState extends State<MyApp> {
             ),
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF03A9F4),
+                backgroundColor: const Color(0xFF1976D2),
                 foregroundColor: Colors.white,
                 elevation: 4,
                 shape: RoundedRectangleBorder(
@@ -122,7 +117,7 @@ class _MyAppState extends State<MyApp> {
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
                 borderSide: const BorderSide(
-                  color: Color(0xFF03A9F4),
+                  color: Color(0xFF1976D2),
                   width: 3,
                 ),
               ),
