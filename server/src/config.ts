@@ -7,6 +7,8 @@ const DEFAULT_MONGO_URI = "mongodb://127.0.0.1:27017/bazooka";
 const DEFAULT_OREF_FEED_URL = "https://www.oref.org.il/warningMessages/alert/Alerts.json";
 const DEFAULT_OREF_POLL_INTERVAL_MS = 3000;
 const DEFAULT_OREF_REQUEST_TIMEOUT_MS = 2000;
+const DEFAULT_WRITE_RATE_LIMIT_WINDOW_MS = 60_000;
+const DEFAULT_WRITE_RATE_LIMIT_MAX = 120;
 
 function parsePort(rawPort: string | undefined): number {
   if (!rawPort) {
@@ -91,5 +93,15 @@ export const config = {
   ),
   orefPollerEnabled: parseBoolean(process.env.OREF_POLLER_ENABLED, true),
   fcmEnabled: parseBoolean(process.env.FCM_ENABLED, true),
-  firebaseServiceAccountPath: parseOptionalString(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
+  firebaseServiceAccountPath: parseOptionalString(process.env.FIREBASE_SERVICE_ACCOUNT_PATH),
+  writeRateLimitWindowMs: parsePositiveInt(
+    process.env.WRITE_RATE_LIMIT_WINDOW_MS,
+    "WRITE_RATE_LIMIT_WINDOW_MS",
+    DEFAULT_WRITE_RATE_LIMIT_WINDOW_MS
+  ),
+  writeRateLimitMax: parsePositiveInt(
+    process.env.WRITE_RATE_LIMIT_MAX,
+    "WRITE_RATE_LIMIT_MAX",
+    DEFAULT_WRITE_RATE_LIMIT_MAX
+  )
 };
