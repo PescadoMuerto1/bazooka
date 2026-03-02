@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { config } from "../config.js";
 import { AlertModel } from "../models/alert.js";
+import { fanoutAlertToSubscribedDevices } from "./fcmFanout.js";
 import type { NormalizedAlert, RawOrefAlert } from "../types.js";
 
 let pollTimer: NodeJS.Timeout | null = null;
@@ -154,6 +155,14 @@ export async function pollOrefOnce(): Promise<number> {
       sourceTimestamp: normalized.sourceTimestamp,
       ingestedAt: new Date()
     });
+
+    const fanoutResult = await fanoutAlertToSubscribedDevices(normalized);
+    if (fanoutResult.matchedSubscriptions > 0) {
+      console.log(
+        `Alert ${normalized.alertId} fanout matched=${fanoutResult.matchedSubscriptions} sent=${fanoutResult.sent} failed=${fanoutResult.failed}`
+      );
+    }
+
     insertedCount += 1;
   }
 

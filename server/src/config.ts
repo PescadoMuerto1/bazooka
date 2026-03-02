@@ -67,6 +67,14 @@ function parseBoolean(rawValue: string | undefined, fallback: boolean): boolean 
   throw new Error(`Invalid boolean value: "${rawValue}"`);
 }
 
+function parseOptionalString(rawValue: string | undefined): string | null {
+  if (!rawValue || rawValue.trim().length === 0) {
+    return null;
+  }
+
+  return rawValue.trim();
+}
+
 export const config = {
   port: parsePort(process.env.PORT),
   mongoUri: parseMongoUri(process.env.MONGO_URI),
@@ -81,5 +89,7 @@ export const config = {
     "OREF_REQUEST_TIMEOUT_MS",
     DEFAULT_OREF_REQUEST_TIMEOUT_MS
   ),
-  orefPollerEnabled: parseBoolean(process.env.OREF_POLLER_ENABLED, true)
+  orefPollerEnabled: parseBoolean(process.env.OREF_POLLER_ENABLED, true),
+  fcmEnabled: parseBoolean(process.env.FCM_ENABLED, true),
+  firebaseServiceAccountPath: parseOptionalString(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
 };
