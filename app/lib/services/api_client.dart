@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/alert_dto.dart';
@@ -26,18 +27,43 @@ abstract class AlertsApi {
 }
 
 class ApiClient implements AlertsApi {
+  static const _defaultBaseUrl = 'http://10.0.2.2:3000';
+
   ApiClient({String? baseUrl, http.Client? httpClient})
-    : _baseUrl = _normalizeBaseUrl(
-        baseUrl ??
-            const String.fromEnvironment(
-              'BACKEND_BASE_URL',
-              defaultValue: 'http://10.0.2.2:3000',
-            ),
-      ),
+    : _baseUrl = _normalizeBaseUrl(_resolveBaseUrl(baseUrl)),
       _httpClient = httpClient ?? http.Client();
 
   final String _baseUrl;
   final http.Client _httpClient;
+
+  static String _resolveBaseUrl(String? overrideBaseUrl) {
+    if (overrideBaseUrl != null && overrideBaseUrl.trim().isNotEmpty) {
+      return overrideBaseUrl;
+    }
+
+    const fromDefine = String.fromEnvironment(
+      'BACKEND_BASE_URL',
+      defaultValue: '',
+    );
+    if (fromDefine.trim().isNotEmpty) {
+      return fromDefine;
+    }
+
+    final fromEnvFile = _tryReadEnvFileBaseUrl();
+    if (fromEnvFile != null && fromEnvFile.trim().isNotEmpty) {
+      return fromEnvFile;
+    }
+
+    return _defaultBaseUrl;
+  }
+
+  static String? _tryReadEnvFileBaseUrl() {
+    try {
+      return dotenv.env['BACKEND_BASE_URL'];
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Future<List<AlertDto>> fetchRecentAlerts({

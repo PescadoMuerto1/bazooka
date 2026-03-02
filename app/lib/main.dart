@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:app/screens/alerts_screen.dart';
 import 'package:app/screens/city_setup_screen.dart';
@@ -18,6 +19,11 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage _) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {
+    // Fall back to defaults/dart-define when .env is missing.
+  }
   try {
     await Firebase.initializeApp();
   } catch (_) {
