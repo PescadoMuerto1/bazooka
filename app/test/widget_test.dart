@@ -81,6 +81,8 @@ void main() {
     await tester.tap(find.text('Tel Aviv (תל אביב)').last);
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.byKey(const Key('saveCityButton')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('saveCityButton')));
     await tester.pumpAndSettle();
 

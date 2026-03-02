@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 
-class NotificationPopupScreen extends StatelessWidget {
+class NotificationPopupScreen extends StatefulWidget {
   const NotificationPopupScreen({
     super.key,
     required this.title,
@@ -13,11 +14,44 @@ class NotificationPopupScreen extends StatelessWidget {
   final List<String> areas;
 
   @override
+  State<NotificationPopupScreen> createState() =>
+      _NotificationPopupScreenState();
+}
+
+class _NotificationPopupScreenState extends State<NotificationPopupScreen> {
+  late final AudioPlayer _audioPlayer;
+
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer = AudioPlayer();
+    _startAlertSong();
+  }
+
+  Future<void> _startAlertSong() async {
+    try {
+      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      await _audioPlayer.play(AssetSource('alert_song.mp3'));
+    } catch (_) {
+      // Keep popup functional even if playback fails on a specific device.
+    }
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.stop();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final areaText = areas.isEmpty ? 'Unknown area' : areas.join(', ');
-    final bodyText = body.trim().isEmpty
+    final areaText = widget.areas.isEmpty
+        ? 'Unknown area'
+        : widget.areas.join(', ');
+    final bodyText = widget.body.trim().isEmpty
         ? 'Stay alert and follow instructions.'
-        : body;
+        : widget.body;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Incoming Alert')),
@@ -35,7 +69,7 @@ class NotificationPopupScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     Text(
-                      title,
+                      widget.title,
                       style: Theme.of(context).textTheme.headlineSmall,
                       textAlign: TextAlign.center,
                     ),

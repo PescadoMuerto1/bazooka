@@ -154,6 +154,15 @@ class _LoadingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return Scaffold(
+      body: SizedBox.expand(
+        child: Image.asset(
+          'assets/splash.png',
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              const Center(child: CircularProgressIndicator()),
+        ),
+      ),
+    );
   }
 }
