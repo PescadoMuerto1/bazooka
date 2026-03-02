@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { appendFile, mkdir } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { config } from "../config.js";
 import { AlertModel } from "../models/alert.js";
 import { fanoutAlertToSubscribedDevices } from "./fcmFanout.js";
@@ -6,6 +8,7 @@ import type { NormalizedAlert, RawOrefAlert } from "../types.js";
 
 let pollTimer: NodeJS.Timeout | null = null;
 let isPolling = false;
+const alertsLogPath = resolve(process.cwd(), config.orefAlertsLogPath);
 
 function asNonEmptyString(value: unknown): string | null {
   if (typeof value !== "string") {
@@ -120,10 +123,44 @@ async function fetchOrefPayload(): Promise<unknown> {
       throw new Error(`Oref feed request failed with status ${response.status}`);
     }
 
-    return await response.json();
+    const body = await response.text();
+    const normalizedBody = body.trim().replace(/^\uFEFF/, "");
+    if (normalizedBody.length === 0) {
+      return [];
+    }
+
+    try {
+      return JSON.parse(normalizedBody);
+    } catch {
+      const contentType = response.headers.get("content-type") ?? "unknown";
+      const bodyPreview = normalizedBody.slice(0, 120);
+      console.warn(
+        `Oref feed returned invalid JSON, ignoring this poll. status=${response.status} content-type=${contentType} preview=${JSON.stringify(bodyPreview)}`
+      );
+      return [];
+    }
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function toAlertLogLine(alert: NormalizedAlert): string {
+  const logEntry = {
+    loggedAt: new Date().toISOString(),
+    alertId: alert.alertId,
+    title: alert.title,
+    category: alert.category,
+    areas: alert.areas,
+    desc: alert.desc,
+    sourceTimestamp: alert.sourceTimestamp ? alert.sourceTimestamp.toISOString() : null
+  };
+
+  return `${JSON.stringify(logEntry)}\n`;
+}
+
+async function appendAlertToLog(alert: NormalizedAlert): Promise<void> {
+  await mkdir(dirname(alertsLogPath), { recursive: true });
+  await appendFile(alertsLogPath, toAlertLogLine(alert), "utf8");
 }
 
 export async function pollOrefOnce(): Promise<number> {
@@ -156,6 +193,12 @@ export async function pollOrefOnce(): Promise<number> {
       ingestedAt: new Date()
     });
 
+    try {
+      await appendAlertToLog(normalized);
+    } catch (error) {
+      console.warn("Failed to append alert to Oref alerts log", error);
+    }
+
     const fanoutResult = await fanoutAlertToSubscribedDevices(normalized);
     if (fanoutResult.matchedSubscriptions > 0) {
       console.log(
@@ -185,11 +228,11 @@ export function startOrefPoller(): void {
     }
 
     isPolling = true;
+    const startedAt = Date.now();
     try {
       const insertedCount = await pollOrefOnce();
-      if (insertedCount > 0) {
-        console.log(`Oref poller ingested ${insertedCount} new alert(s)`);
-      }
+      const durationMs = Date.now() - startedAt;
+      console.log(`Oref poller tick inserted=${insertedCount} durationMs=${durationMs}`);
     } catch (error) {
       console.error("Oref poller run failed", error);
     } finally {

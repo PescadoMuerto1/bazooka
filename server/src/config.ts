@@ -7,6 +7,7 @@ const DEFAULT_MONGO_URI = "mongodb://127.0.0.1:27017/bazooka";
 const DEFAULT_OREF_FEED_URL = "https://www.oref.org.il/warningMessages/alert/Alerts.json";
 const DEFAULT_OREF_POLL_INTERVAL_MS = 3000;
 const DEFAULT_OREF_REQUEST_TIMEOUT_MS = 2000;
+const DEFAULT_OREF_ALERTS_LOG_PATH = "logs/oref-alerts.log";
 const DEFAULT_WRITE_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_WRITE_RATE_LIMIT_MAX = 120;
 
@@ -52,6 +53,14 @@ function parseOrefFeedUrl(rawUrl: string | undefined): string {
   return rawUrl.trim();
 }
 
+function parseOrefAlertsLogPath(rawPath: string | undefined): string {
+  if (!rawPath || rawPath.trim().length === 0) {
+    return DEFAULT_OREF_ALERTS_LOG_PATH;
+  }
+
+  return rawPath.trim();
+}
+
 function parseBoolean(rawValue: string | undefined, fallback: boolean): boolean {
   if (!rawValue || rawValue.trim().length === 0) {
     return fallback;
@@ -81,6 +90,7 @@ export const config = {
   port: parsePort(process.env.PORT),
   mongoUri: parseMongoUri(process.env.MONGO_URI),
   orefFeedUrl: parseOrefFeedUrl(process.env.OREF_FEED_URL),
+  orefAlertsLogPath: parseOrefAlertsLogPath(process.env.OREF_ALERTS_LOG_PATH),
   orefPollIntervalMs: parsePositiveInt(
     process.env.OREF_POLL_INTERVAL_MS,
     "OREF_POLL_INTERVAL_MS",
