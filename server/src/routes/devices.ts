@@ -1,5 +1,6 @@
 import { type NextFunction, type Request, type Response, Router } from "express";
 import { config } from "../config.js";
+import { logError, logInfo, logWarn } from "../logger.js";
 import { DeviceModel } from "../models/device.js";
 import { SubscriptionModel } from "../models/subscription.js";
 
@@ -43,6 +44,13 @@ function maybeRateLimitWrite(req: Request, res: Response, next: NextFunction): v
   if (existing.count >= config.writeRateLimitMax) {
     const retryAfterSeconds = Math.ceil((config.writeRateLimitWindowMs - (now - existing.windowStartedAt)) / 1000);
     res.setHeader("Retry-After", String(Math.max(1, retryAfterSeconds)));
+    logWarn("write_rate_limit_exceeded", {
+      key,
+      path: req.path,
+      method: req.method,
+      ip: req.ip,
+      retryAfterSeconds
+    });
     res.status(429).json({ ok: false, error: "Rate limit exceeded for write operations" });
     return;
   }
@@ -62,6 +70,12 @@ devicesRouter.post("/register-device", async (req, res) => {
     const locale = getRequiredString(req.body.locale, "locale", 32);
     const appVersion = getRequiredString(req.body.appVersion, "appVersion", 32);
 
+    logInfo("register_device_requested", {
+      deviceId,
+      locale,
+      appVersion
+    });
+
     await DeviceModel.findOneAndUpdate(
       { deviceId },
       {
@@ -75,18 +89,24 @@ devicesRouter.post("/register-device", async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    console.log(`Device registered or updated: deviceId=${deviceId}`);
+    logInfo("register_device_succeeded", { deviceId });
     return res.status(200).json({ ok: true });
   } catch (error) {
     if (error instanceof Error && error.message.includes("required")) {
+      logWarn("register_device_bad_request", {
+        reason: error.message
+      });
       return res.status(400).json({ ok: false, error: error.message });
     }
 
     if (error instanceof Error && (error.message.includes("at most") || error.message.includes("JSON object"))) {
+      logWarn("register_device_bad_request", {
+        reason: error.message
+      });
       return res.status(400).json({ ok: false, error: error.message });
     }
 
-    console.error("Failed to register device", error);
+    logError("register_device_failed", error);
     return res.status(500).json({ ok: false, error: "Internal server error" });
   }
 });
@@ -99,12 +119,25 @@ devicesRouter.put("/subscription", async (req, res) => {
     const cityDisplay = getRequiredString(req.body.cityDisplay, "cityDisplay", 120);
     const lang = getRequiredString(req.body.lang, "lang", 8);
 
+    logInfo("subscription_upsert_requested", {
+      deviceId,
+      cityKey,
+      lang
+    });
+
     if (!SUPPORTED_LANGUAGES.has(lang)) {
+      logWarn("subscription_upsert_bad_request", {
+        reason: "\"lang\" must be one of he/en/ru/ar",
+        deviceId,
+        cityKey,
+        lang
+      });
       return res.status(400).json({ ok: false, error: "\"lang\" must be one of he/en/ru/ar" });
     }
 
     const deviceExists = await DeviceModel.exists({ deviceId });
     if (!deviceExists) {
+      logWarn("subscription_upsert_device_missing", { deviceId, cityKey });
       return res.status(404).json({ ok: false, error: "Device not registered" });
     }
 
@@ -120,18 +153,29 @@ devicesRouter.put("/subscription", async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    console.log(`Subscription upserted: deviceId=${deviceId}, cityKey=${cityKey}`);
+    logInfo("subscription_upsert_succeeded", {
+      deviceId,
+      cityKey,
+      cityDisplay,
+      lang
+    });
     return res.status(200).json({ ok: true });
   } catch (error) {
     if (error instanceof Error && error.message.includes("required")) {
+      logWarn("subscription_upsert_bad_request", {
+        reason: error.message
+      });
       return res.status(400).json({ ok: false, error: error.message });
     }
 
     if (error instanceof Error && (error.message.includes("at most") || error.message.includes("JSON object"))) {
+      logWarn("subscription_upsert_bad_request", {
+        reason: error.message
+      });
       return res.status(400).json({ ok: false, error: error.message });
     }
 
-    console.error("Failed to update subscription", error);
+    logError("subscription_upsert_failed", error);
     return res.status(500).json({ ok: false, error: "Internal server error" });
   }
 });

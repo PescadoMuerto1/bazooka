@@ -6,6 +6,7 @@ import '../models/alert_dto.dart';
 import 'notification_popup_screen.dart';
 import '../screens/settings_screen.dart';
 import '../services/api_client.dart';
+import '../services/app_logger.dart';
 import '../services/push_service.dart';
 import '../state/app_settings.dart';
 
@@ -39,6 +40,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
   StreamSubscription<PushAlertEvent>? _pushAlertSubscription;
 
   Future<void> _openSettings() async {
+    AppLogger.info('AlertsScreen', 'Opening settings screen');
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => SettingsScreen(
@@ -53,12 +55,14 @@ class _AlertsScreenState extends State<AlertsScreen> {
       return;
     }
 
+    AppLogger.info('AlertsScreen', 'Returned from settings; refreshing alerts');
     await _fetchAlerts();
   }
 
   @override
   void initState() {
     super.initState();
+    AppLogger.info('AlertsScreen', 'initState');
     _pushAlertSubscription = widget.pushService.alertEvents.listen(
       _handlePushAlertEvent,
     );
@@ -73,6 +77,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   @override
   void dispose() {
+    AppLogger.info('AlertsScreen', 'dispose');
     _pushAlertSubscription?.cancel();
     super.dispose();
   }
@@ -81,6 +86,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
     if (!mounted) {
       return;
     }
+    AppLogger.info(
+      'AlertsScreen',
+      'Push alert event received',
+      <String, Object?>{'title': event.title, 'areasCount': event.areas.length},
+    );
 
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -96,6 +106,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
   Future<void> _fetchAlerts() async {
     final cityKey = widget.settings.cityKey;
     if (cityKey == null || cityKey.trim().isEmpty) {
+      AppLogger.warn('AlertsScreen', 'Fetch skipped: city key missing');
       setState(() {
         _alerts = const <AlertDto>[];
         _isLoading = false;
@@ -106,6 +117,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+    });
+    AppLogger.info('AlertsScreen', 'Fetching alerts', <String, Object?>{
+      'cityKey': cityKey,
     });
 
     try {
@@ -118,6 +132,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
         _alerts = alerts;
         _isLoading = false;
       });
+      AppLogger.info('AlertsScreen', 'Alerts fetched', <String, Object?>{
+        'cityKey': cityKey,
+        'count': alerts.length,
+      });
     } catch (error) {
       if (!mounted) {
         return;
@@ -128,7 +146,12 @@ class _AlertsScreenState extends State<AlertsScreen> {
         _isLoading = false;
         _errorMessage = 'Could not fetch recent alerts';
       });
-      debugPrint('Alerts fetch failed: $error');
+      AppLogger.error(
+        'AlertsScreen',
+        'Alerts fetch failed',
+        error: error,
+        context: <String, Object?>{'cityKey': cityKey},
+      );
     }
   }
 

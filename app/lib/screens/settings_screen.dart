@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/api_client.dart';
+import '../services/app_logger.dart';
 import '../services/push_service.dart';
 import '../state/app_settings.dart';
 
@@ -37,10 +38,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _selectedLanguageCode = widget.settings.languageCode;
+    AppLogger.info(
+      'SettingsScreen',
+      'Initialized settings screen',
+      <String, Object?>{
+        'selectedLanguageCode': _selectedLanguageCode,
+        'cityKey': widget.settings.cityKey ?? '',
+      },
+    );
   }
 
   Future<void> _saveLanguage() async {
     if (_isSavingLanguage) {
+      AppLogger.warn('SettingsScreen', 'Save language skipped: already saving');
       return;
     }
 
@@ -49,6 +59,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     try {
+      AppLogger.info('SettingsScreen', 'Saving language', <String, Object?>{
+        'languageCode': _selectedLanguageCode,
+      });
       await widget.settings.updateLanguage(_selectedLanguageCode);
       await widget.pushService.initializeAndSync(
         settings: widget.settings,
@@ -60,7 +73,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Language saved')));
+      AppLogger.info('SettingsScreen', 'Language saved');
     } catch (error) {
+      AppLogger.error(
+        'SettingsScreen',
+        'Language save failed',
+        error: error,
+        context: <String, Object?>{'languageCode': _selectedLanguageCode},
+      );
       if (!mounted) {
         return;
       }
@@ -78,6 +98,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _runNotificationTest() async {
     if (_isTestingNotification) {
+      AppLogger.warn(
+        'SettingsScreen',
+        'Notification test skipped: already running',
+      );
       return;
     }
 
@@ -86,6 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     try {
+      AppLogger.info('SettingsScreen', 'Running notification sync test');
       await widget.pushService.initializeAndSync(
         settings: widget.settings,
         apiClient: widget.apiClient,
@@ -100,7 +125,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       );
+      AppLogger.info('SettingsScreen', 'Notification sync test completed');
     } catch (error) {
+      AppLogger.error(
+        'SettingsScreen',
+        'Notification sync test failed',
+        error: error,
+      );
       if (!mounted) {
         return;
       }
@@ -117,6 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _changeCity() async {
+    AppLogger.info('SettingsScreen', 'Changing city');
     await widget.settings.clearCitySelection();
     if (!mounted) {
       return;
@@ -126,6 +158,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _enableAutoOpenAlerts() async {
     if (_isEnablingAutoOpen) {
+      AppLogger.warn(
+        'SettingsScreen',
+        'Enable auto-open skipped: already in progress',
+      );
       return;
     }
 
@@ -134,6 +170,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     try {
+      AppLogger.info('SettingsScreen', 'Requesting auto-open permission');
       final granted = await widget.pushService
           .requestFullScreenIntentPermission();
       if (!mounted) {
@@ -143,7 +180,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ? 'Auto-open permission granted. Lock/turn off screen to test full-screen launch.'
           : 'Auto-open permission not granted yet. Enable Full-screen notifications in Android settings.';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      AppLogger.info(
+        'SettingsScreen',
+        'Auto-open permission result',
+        <String, Object?>{'granted': granted},
+      );
     } catch (error) {
+      AppLogger.error(
+        'SettingsScreen',
+        'Request auto-open permission failed',
+        error: error,
+      );
       if (!mounted) {
         return;
       }

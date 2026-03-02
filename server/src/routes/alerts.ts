@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { mapAlertAreasToCityKeys } from "../data/cities.js";
+import { logError, logInfo, logWarn } from "../logger.js";
 import { AlertModel } from "../models/alert.js";
 
 const alertsRouter = Router();
@@ -39,6 +40,13 @@ alertsRouter.get("/alerts/recent", async (req, res) => {
     const queryCityKeys = new Set(mapAlertAreasToCityKeys([cityKey]));
     const fetchLimit = Math.min(limit * 20, 500);
 
+    logInfo("alerts_recent_requested", {
+      cityKey,
+      limit,
+      queryCityKeyCount: queryCityKeys.size,
+      fetchLimit
+    });
+
     const alerts = await AlertModel.find({})
       .sort({ ingestedAt: -1 })
       .limit(fetchLimit)
@@ -51,6 +59,12 @@ alertsRouter.get("/alerts/recent", async (req, res) => {
         return normalizedAlertKeys.some((area) => queryCityKeys.has(area));
       })
       .slice(0, limit);
+
+    logInfo("alerts_recent_succeeded", {
+      cityKey,
+      matchedCount: matchingAlerts.length,
+      fetchedCount: alerts.length
+    });
 
     return res.status(200).json(
       matchingAlerts.map((alert) => ({
@@ -65,14 +79,24 @@ alertsRouter.get("/alerts/recent", async (req, res) => {
     );
   } catch (error) {
     if (error instanceof Error && error.message.includes("query param")) {
+      logWarn("alerts_recent_bad_request", {
+        reason: error.message,
+        query: req.query as Record<string, unknown>
+      });
       return res.status(400).json({ ok: false, error: error.message });
     }
 
     if (error instanceof Error && error.message.includes("positive integer")) {
+      logWarn("alerts_recent_bad_request", {
+        reason: error.message,
+        query: req.query as Record<string, unknown>
+      });
       return res.status(400).json({ ok: false, error: error.message });
     }
 
-    console.error("Failed to fetch recent alerts", error);
+    logError("alerts_recent_failed", error, {
+      query: req.query as Record<string, unknown>
+    });
     return res.status(500).json({ ok: false, error: "Internal server error" });
   }
 });

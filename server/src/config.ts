@@ -8,6 +8,7 @@ const DEFAULT_OREF_FEED_URL = "https://www.oref.org.il/warningMessages/alert/Ale
 const DEFAULT_OREF_POLL_INTERVAL_MS = 3000;
 const DEFAULT_OREF_REQUEST_TIMEOUT_MS = 2000;
 const DEFAULT_OREF_ALERTS_LOG_PATH = "logs/oref-alerts.log";
+const DEFAULT_SYSTEM_LOG_PATH = "logs/system.log";
 const DEFAULT_WRITE_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_WRITE_RATE_LIMIT_MAX = 120;
 
@@ -61,6 +62,14 @@ function parseOrefAlertsLogPath(rawPath: string | undefined): string {
   return rawPath.trim();
 }
 
+function parseSystemLogPath(rawPath: string | undefined): string {
+  if (!rawPath || rawPath.trim().length === 0) {
+    return DEFAULT_SYSTEM_LOG_PATH;
+  }
+
+  return rawPath.trim();
+}
+
 function parseBoolean(rawValue: string | undefined, fallback: boolean): boolean {
   if (!rawValue || rawValue.trim().length === 0) {
     return fallback;
@@ -91,6 +100,7 @@ export const config = {
   mongoUri: parseMongoUri(process.env.MONGO_URI),
   orefFeedUrl: parseOrefFeedUrl(process.env.OREF_FEED_URL),
   orefAlertsLogPath: parseOrefAlertsLogPath(process.env.OREF_ALERTS_LOG_PATH),
+  systemLogPath: parseSystemLogPath(process.env.SYSTEM_LOG_PATH),
   orefPollIntervalMs: parsePositiveInt(
     process.env.OREF_POLL_INTERVAL_MS,
     "OREF_POLL_INTERVAL_MS",
@@ -102,6 +112,7 @@ export const config = {
     DEFAULT_OREF_REQUEST_TIMEOUT_MS
   ),
   orefPollerEnabled: parseBoolean(process.env.OREF_POLLER_ENABLED, true),
+  devToolsEnabled: parseBoolean(process.env.DEV_TOOLS_ENABLED, true),
   fcmEnabled: parseBoolean(process.env.FCM_ENABLED, true),
   firebaseServiceAccountPath: parseOptionalString(process.env.FIREBASE_SERVICE_ACCOUNT_PATH),
   writeRateLimitWindowMs: parsePositiveInt(
