@@ -88,6 +88,8 @@ abstract class PushSyncService {
   });
 
   Stream<PushAlertEvent> get alertEvents;
+
+  Future<bool> requestFullScreenIntentPermission();
 }
 
 class PushService implements PushSyncService {
@@ -216,7 +218,7 @@ class PushService implements PushSyncService {
     );
 
     await _createAlertsChannel(_localNotificationsPlugin);
-    await _requestAndroidNotificationPermissions(_localNotificationsPlugin);
+    await requestFullScreenIntentPermission();
     await _captureNotificationLaunchPayload();
     _localNotificationsInitialized = true;
   }
@@ -297,17 +299,6 @@ class PushService implements PushSyncService {
     await androidPlugin?.createNotificationChannel(channel);
   }
 
-  static Future<void> _requestAndroidNotificationPermissions(
-    FlutterLocalNotificationsPlugin plugin,
-  ) async {
-    final androidPlugin = plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    await androidPlugin?.requestNotificationsPermission();
-    await androidPlugin?.requestFullScreenIntentPermission();
-  }
-
   static NotificationDetails _alertNotificationDetails() {
     return const NotificationDetails(
       android: AndroidNotificationDetails(
@@ -315,11 +306,13 @@ class PushService implements PushSyncService {
         _alertsChannelName,
         channelDescription: _alertsChannelDescription,
         importance: Importance.max,
-        priority: Priority.high,
+        priority: Priority.max,
         playSound: true,
         sound: RawResourceAndroidNotificationSound(_alertsSoundResource),
+        audioAttributesUsage: AudioAttributesUsage.alarm,
         fullScreenIntent: true,
-        category: AndroidNotificationCategory.alarm,
+        category: AndroidNotificationCategory.call,
+        visibility: NotificationVisibility.public,
       ),
     );
   }
@@ -349,6 +342,23 @@ class PushService implements PushSyncService {
       _alertNotificationDetails(),
       payload: jsonEncode(event.toJson()),
     );
+  }
+
+  @override
+  Future<bool> requestFullScreenIntentPermission() async {
+    final androidPlugin = _localNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (androidPlugin == null) {
+      return true;
+    }
+
+    final notificationsGranted =
+        await androidPlugin.requestNotificationsPermission() ?? true;
+    final fullScreenGranted =
+        await androidPlugin.requestFullScreenIntentPermission() ?? true;
+    return notificationsGranted && fullScreenGranted;
   }
 
   Future<String?> _safeGetToken() async {

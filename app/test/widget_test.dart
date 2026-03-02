@@ -46,6 +46,11 @@ class _NoopPushSyncService implements PushSyncService {
       const Stream<PushAlertEvent>.empty();
 
   @override
+  Future<bool> requestFullScreenIntentPermission() async {
+    return true;
+  }
+
+  @override
   Future<void> initializeAndSync({
     required AppSettings settings,
     required AlertsApi apiClient,

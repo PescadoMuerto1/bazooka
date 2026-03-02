@@ -42,6 +42,7 @@ The app already includes:
   - custom sound (`alert_song`)
   - full-screen intent
 - This allows alerts to appear prominently even when app UI is not open.
+- Full-screen auto-launch is mainly expected when the screen is off/locked.
 
 Important:
 - Android/OS policy can still suppress full-screen launch in some situations.
