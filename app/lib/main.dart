@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:app/screens/alerts_screen.dart';
 import 'package:app/screens/city_setup_screen.dart';
+import 'package:app/services/api_client.dart';
+import 'package:app/services/push_service.dart';
 import 'package:app/state/app_settings.dart';
 
 void main() {
@@ -7,19 +10,28 @@ void main() {
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.settings, this.apiClient, this.pushService});
+
+  final AppSettings? settings;
+  final AlertsApi? apiClient;
+  final PushSyncService? pushService;
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
-  final AppSettings _settings = AppSettings();
+  late final AppSettings _settings;
+  late final AlertsApi _apiClient;
+  late final PushSyncService _pushService;
   late final Future<void> _initialLoad;
 
   @override
   void initState() {
     super.initState();
+    _settings = widget.settings ?? AppSettings();
+    _apiClient = widget.apiClient ?? ApiClient();
+    _pushService = widget.pushService ?? PushService();
     _initialLoad = _settings.load();
   }
 
@@ -47,7 +59,11 @@ class _MyAppState extends State<MyApp> {
                 return CitySetupScreen(settings: _settings);
               }
 
-              return _HomeScreen(settings: _settings);
+              return AlertsScreen(
+                settings: _settings,
+                apiClient: _apiClient,
+                pushService: _pushService,
+              );
             },
           ),
         );
@@ -62,61 +78,5 @@ class _LoadingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(body: Center(child: CircularProgressIndicator()));
-  }
-}
-
-class _HomeScreen extends StatelessWidget {
-  const _HomeScreen({required this.settings});
-
-  final AppSettings settings;
-
-  static const Map<String, String> _languageNames = <String, String>{
-    'he': 'Hebrew',
-    'en': 'English',
-    'ru': 'Russian',
-    'ar': 'Arabic',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final cityDisplay = settings.cityDisplay ?? settings.cityKey ?? 'Unknown';
-    final languageDisplay =
-        _languageNames[settings.languageCode] ?? settings.languageCode;
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Bazooka')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Text(
-              'Notifications are set',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text('City: $cityDisplay'),
-                    const SizedBox(height: 8),
-                    Text('Language: $languageDisplay'),
-                  ],
-                ),
-              ),
-            ),
-            const Spacer(),
-            OutlinedButton(
-              key: const Key('changeCityButton'),
-              onPressed: settings.clearCitySelection,
-              child: const Text('Change city'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
