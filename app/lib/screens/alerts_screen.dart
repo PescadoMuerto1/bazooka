@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../models/alert_dto.dart';
+import '../screens/settings_screen.dart';
 import '../services/api_client.dart';
 import '../services/push_service.dart';
 import '../state/app_settings.dart';
@@ -34,6 +35,24 @@ class _AlertsScreenState extends State<AlertsScreen> {
   List<AlertDto> _alerts = const <AlertDto>[];
   bool _isLoading = true;
   String? _errorMessage;
+
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => SettingsScreen(
+          settings: widget.settings,
+          apiClient: widget.apiClient,
+          pushService: widget.pushService,
+        ),
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    await _fetchAlerts();
+  }
 
   @override
   void initState() {
@@ -99,6 +118,12 @@ class _AlertsScreenState extends State<AlertsScreen> {
         title: const Text('Bazooka Alerts'),
         actions: <Widget>[
           IconButton(
+            key: const Key('openSettingsButton'),
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: _openSettings,
+          ),
+          IconButton(
             key: const Key('refreshAlertsButton'),
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
@@ -139,12 +164,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 ),
               ),
             Expanded(child: _buildAlertsBody()),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              key: const Key('changeCityButton'),
-              onPressed: widget.settings.clearCitySelection,
-              child: const Text('Change city'),
-            ),
           ],
         ),
       ),

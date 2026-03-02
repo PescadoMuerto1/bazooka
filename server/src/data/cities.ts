@@ -7,7 +7,8 @@ const CITY_ALIASES: Record<string, string[]> = {
   בארשבע: ["באר שבע", "באר-שבע", "be'er sheva", "beer sheva", "beersheba"],
   רמתגן: ["רמת גן", "רמת-גן", "ramat gan"],
   פתחתקווה: ["פתח תקווה", "פתח-תקווה", "petah tikva", "petach tikva"],
-  נתניה: ["נתניה", "netanya"]
+  נתניה: ["נתניה", "netanya"],
+  "בית שמש": ["בית שמש", "beit shemesh"]
 };
 
 function normalizeText(value: string): string {
