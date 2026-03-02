@@ -154,13 +154,16 @@ class _LoadingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageSize = MediaQuery.of(context).size.width * 0.58;
     return Scaffold(
-      body: SizedBox.expand(
+      backgroundColor: const Color(0xFFFFC107),
+      body: Center(
         child: Image.asset(
           'assets/splash.png',
-          fit: BoxFit.cover,
+          width: imageSize.clamp(180.0, 280.0),
+          fit: BoxFit.contain,
           errorBuilder: (_, __, ___) =>
-              const Center(child: CircularProgressIndicator()),
+              const CircularProgressIndicator(color: Colors.black54),
         ),
       ),
     );
