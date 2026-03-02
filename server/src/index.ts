@@ -1,6 +1,7 @@
 import express from "express";
 import { config } from "./config.js";
 import { connectToDatabase } from "./db.js";
+import { startOrefPoller } from "./poller/orefPoller.js";
 import devicesRouter from "./routes/devices.js";
 import healthRouter from "./routes/health.js";
 
@@ -19,6 +20,7 @@ app.get("/", (_req, res) => {
 
 async function startServer(): Promise<void> {
   await connectToDatabase();
+  startOrefPoller();
 
   app.listen(config.port, () => {
     console.log(`Bazooka server listening on port ${config.port}`);
