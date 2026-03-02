@@ -21,6 +21,7 @@ const List<CityOption> _cityOptions = <CityOption>[
   CityOption(key: 'חיפה', displayName: 'Haifa'),
   CityOption(key: 'אשדוד', displayName: 'Ashdod'),
   CityOption(key: 'בארשבע', displayName: 'Be\'er Sheva'),
+  CityOption(key: 'בית שמש', displayName: 'Beit Shemesh'),
 ];
 
 const List<LanguageOption> _languageOptions = <LanguageOption>[

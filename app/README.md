@@ -1,16 +1,38 @@
-# app
+# Bazooka App
 
-A new Flutter project.
+## Firebase FCM Setup
 
-## Getting Started
+1. Put your Firebase Android config at:
+   - `app/android/app/google-services.json`
+2. Confirm package name in Firebase matches:
+   - `com.bazooka.alerts.app`
+3. Configure backend URL in:
+   - `app/.env`
+   - Copy from `app/.env.example` if needed
+3. Install deps:
+   - `cd app && flutter pub get`
+4. Run app:
+   - `flutter run`
 
-This project is a starting point for a Flutter application.
+The app already includes:
+- `firebase_core` initialization on startup.
+- `firebase_messaging` token retrieval and refresh sync.
+- Background message registration (`FirebaseMessaging.onBackgroundMessage`).
+- Backend sync calls to:
+  - `POST /register-device`
+  - `PUT /subscription`
 
-A few resources to get you started if this is your first Flutter project:
+## Backend FCM Dependency
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Backend fanout requires Firebase Admin credentials.  
+Set in `server/.env`:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- `FCM_ENABLED=true`
+- `FIREBASE_SERVICE_ACCOUNT_PATH=./serviceAccountKey.json`
+
+## Backend URL Precedence
+
+1. `ApiClient(baseUrl: ...)` constructor override
+2. `--dart-define=BACKEND_BASE_URL=...`
+3. `app/.env` (`BACKEND_BASE_URL=...`)
+4. Default fallback: `http://10.0.2.2:3000`
