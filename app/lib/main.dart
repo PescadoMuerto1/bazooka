@@ -67,9 +67,67 @@ class _MyAppState extends State<MyApp> {
         return MaterialApp(
           title: 'Bazooka',
           theme: ThemeData(
+            useMaterial3: true,
             colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFFB3261E),
+              seedColor: const Color(0xFFFFC107), // Yellow background
+              primary: const Color(0xFF03A9F4), // Cyan/Blue Bazooka color
+              onPrimary: Colors.white,
+              secondary: const Color(0xFFFF9800), // Orange arms/legs
+              onSecondary: Colors.white,
+              background: const Color(0xFFFFF8E1), // Light pastel yellow
+              surface: Colors.white,
             ),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFFFFC107),
+              foregroundColor: Colors.black87,
+              centerTitle: true,
+              elevation: 0,
+              titleTextStyle: TextStyle(
+                color: Colors.black87,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF03A9F4),
+                foregroundColor: Colors.white,
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(32),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 16,
+                  horizontal: 32,
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(
+                  color: Color(0xFF03A9F4),
+                  width: 3,
+                ),
+              ),
+            ),
+            scaffoldBackgroundColor: const Color(0xFFFFF8E1),
           ),
           home: FutureBuilder<void>(
             future: _initialLoad,
