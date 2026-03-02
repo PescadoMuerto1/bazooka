@@ -216,6 +216,7 @@ class PushService implements PushSyncService {
     );
 
     await _createAlertsChannel(_localNotificationsPlugin);
+    await _requestAndroidNotificationPermissions(_localNotificationsPlugin);
     await _captureNotificationLaunchPayload();
     _localNotificationsInitialized = true;
   }
@@ -294,6 +295,17 @@ class PushService implements PushSyncService {
           AndroidFlutterLocalNotificationsPlugin
         >();
     await androidPlugin?.createNotificationChannel(channel);
+  }
+
+  static Future<void> _requestAndroidNotificationPermissions(
+    FlutterLocalNotificationsPlugin plugin,
+  ) async {
+    final androidPlugin = plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    await androidPlugin?.requestNotificationsPermission();
+    await androidPlugin?.requestFullScreenIntentPermission();
   }
 
   static NotificationDetails _alertNotificationDetails() {

@@ -22,6 +22,7 @@ To use a custom notification song, place your audio file at:
 
 Notes:
 - Resource name must be `alert_song`.
+- Supported raw formats include `.wav`, `.mp3`, and `.ogg`.
 - After changing channel sound, uninstall/reinstall the app (Android caches channel settings).
 - If file is missing, Android may fall back to default behavior.
 
