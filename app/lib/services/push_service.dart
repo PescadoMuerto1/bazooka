@@ -49,6 +49,11 @@ class PushService implements PushSyncService {
 
     try {
       await _messaging.requestPermission(alert: true, badge: true, sound: true);
+      await _messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
     } catch (error) {
       debugPrint('Notification permission request failed: $error');
       return;
@@ -59,12 +64,16 @@ class PushService implements PushSyncService {
       return;
     }
 
-    await _syncBackend(
-      apiClient: apiClient,
-      settings: settings,
-      deviceId: deviceId,
-      token: token,
-    );
+    try {
+      await _syncBackend(
+        apiClient: apiClient,
+        settings: settings,
+        deviceId: deviceId,
+        token: token,
+      );
+    } catch (error) {
+      debugPrint('Initial FCM backend sync failed: $error');
+    }
 
     _tokenSubscription ??= _messaging.onTokenRefresh.listen((newToken) {
       if (newToken.isEmpty) {
@@ -72,12 +81,18 @@ class PushService implements PushSyncService {
       }
 
       unawaited(
-        _syncBackend(
-          apiClient: apiClient,
-          settings: settings,
-          deviceId: deviceId,
-          token: newToken,
-        ),
+        Future<void>(() async {
+          try {
+            await _syncBackend(
+              apiClient: apiClient,
+              settings: settings,
+              deviceId: deviceId,
+              token: newToken,
+            );
+          } catch (error) {
+            debugPrint('Token refresh backend sync failed: $error');
+          }
+        }),
       );
     });
   }

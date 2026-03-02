@@ -1,11 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:app/screens/alerts_screen.dart';
 import 'package:app/screens/city_setup_screen.dart';
 import 'package:app/services/api_client.dart';
 import 'package:app/services/push_service.dart';
 import 'package:app/state/app_settings.dart';
 
-void main() {
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage _) async {
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {
+    // Initialization can fail in test/misconfigured environments; app still runs.
+  }
+}
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {
+    // Allow startup even when Firebase native config is not present yet.
+  }
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   runApp(const MyApp());
 }
 
