@@ -110,139 +110,223 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Bazooka Setup')),
+      backgroundColor: const Color(0xFF1976D2), // Deep App Blue
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              const SizedBox(height: 16),
-              // Fun header image
-              Center(
-                child: Image.asset(
-                  'assets/icon.png',
-                  height: 120,
-                  width: 120,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.rocket_launch,
-                    size: 80,
-                    color: Color(0xFF1976D2),
-                  ),
-                ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // Header Content
+            Padding(
+              padding: const EdgeInsets.only(
+                top: 40,
+                left: 24,
+                right: 24,
+                bottom: 24,
               ),
-              const SizedBox(height: 32),
-              Text(
-                'Welcome to Bazooka!',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: const Color(0xFF1976D2),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Pick your city for MVP notifications.\nYou can change it later.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.black54,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 32),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(32),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Opacity(
+                      opacity: 0.5,
+                      child: Image.asset(
+                        'assets/missile.png',
+                        width: 48,
+                        color: Colors.white,
+                      ),
                     ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    DropdownButtonFormField<String>(
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Where are you\nlocated?',
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      height: 1.1,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Search Bar Lookalike (Dropdown for now to keep logic same)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: const <BoxShadow>[
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 0,
+                      vertical: 4,
+                    ),
+                    child: DropdownButtonFormField<String>(
                       key: const Key('languageDropdown'),
                       value: _selectedLanguageCode,
                       decoration: const InputDecoration(
-                        labelText: 'Language',
-                        prefixIcon: Icon(
-                          Icons.language,
-                          color: Color(0xFFFF9800),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        prefixIcon: Icon(Icons.language, color: Colors.black54),
+                      ),
+                      icon: const Padding(
+                        padding: EdgeInsets.only(right: 16),
+                        child: Icon(
+                          Icons.keyboard_arrow_down,
+                          color: Colors.black54,
                         ),
+                      ),
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
                       items: _languageOptions
                           .map(
                             (option) => DropdownMenuItem<String>(
                               value: option.code,
-                              child: Text(
-                                option.displayName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                              child: Text(option.displayName),
                             ),
                           )
                           .toList(),
                       onChanged: (value) {
-                        if (value == null) {
-                          return;
+                        if (value != null) {
+                          setState(() {
+                            _selectedLanguageCode = value;
+                          });
                         }
-
-                        setState(() {
-                          _selectedLanguageCode = value;
-                        });
                       },
                     ),
-                    const SizedBox(height: 20),
-                    DropdownButtonFormField<String>(
-                      key: const Key('cityDropdown'),
-                      value: _selectedCityKey,
-                      decoration: const InputDecoration(
-                        labelText: 'City',
-                        prefixIcon: Icon(
-                          Icons.location_city,
-                          color: Color(0xFFFF9800),
-                        ),
-                      ),
-                      items: _cityOptions
-                          .map(
-                            (option) => DropdownMenuItem<String>(
-                              value: option.key,
-                              child: Text(
-                                '${option.displayName} (${option.key})',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedCityKey = value;
-                        });
-                      },
-                    ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            // Cities List
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
                 ),
+                itemCount: _cityOptions.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 16),
+                itemBuilder: (context, index) {
+                  final city = _cityOptions[index];
+                  final isSelected = city.key == _selectedCityKey;
+
+                  return InkWell(
+                    key: Key('cityOption_${city.key}'),
+                    onTap: () {
+                      setState(() {
+                        _selectedCityKey = city.key;
+                      });
+                      _saveSelection(); // Auto-save on tap for smoother UX
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFFF0F7FF)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: isSelected
+                            ? Border.all(
+                                color: const Color(0xFFFFC107),
+                                width: 2,
+                              )
+                            : null,
+                        boxShadow: const <BoxShadow>[
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.black12),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Image.network(
+                              'https://flagcdn.com/w80/il.png', // Israel flag for all for MVP
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  city.displayName,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.location_on,
+                                      size: 12,
+                                      color: Colors.black54,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      city.key,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.black54,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (isSelected ||
+                              _isSaving && city.key == _selectedCityKey)
+                            _isSaving
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.check_circle,
+                                    color: Color(0xFF4CAF50),
+                                  ),
+                          if (!isSelected && !_isSaving)
+                            const Icon(
+                              Icons.chevron_right,
+                              color: Colors.black26,
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
-              const SizedBox(height: 48),
-              ElevatedButton(
-                key: const Key('saveCityButton'),
-                onPressed: _selectedCityKey == null || _isSaving
-                    ? null
-                    : _saveSelection,
-                child: Text(_isSaving ? 'Saving...' : 'LET\'S GO!'),
-              ),
-              const SizedBox(height: 32),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

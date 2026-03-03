@@ -27,13 +27,6 @@ class AlertsScreen extends StatefulWidget {
 }
 
 class _AlertsScreenState extends State<AlertsScreen> {
-  static const Map<String, String> _languageNames = <String, String>{
-    'he': 'Hebrew',
-    'en': 'English',
-    'ru': 'Russian',
-    'ar': 'Arabic',
-  };
-
   List<AlertDto> _alerts = const <AlertDto>[];
   bool _isLoading = true;
   String? _errorMessage;

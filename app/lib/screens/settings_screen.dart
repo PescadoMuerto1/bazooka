@@ -214,43 +214,127 @@ class _SettingsScreenState extends State<SettingsScreen> {
         widget.settings.cityDisplay ?? widget.settings.cityKey ?? 'Unknown';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: <Widget>[
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+      backgroundColor: const Color(0xFF1976D2), // Deep App Blue
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'Settings',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          children: <Widget>[
+            // Subscription Card
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(24),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   Text(
                     'Subscription',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueGrey[800],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text('City: $cityDisplay'),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_city, color: Color(0xFF1976D2)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          cityDisplay,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        key: const Key('settingsChangeCityButton'),
+                        onPressed: _changeCity,
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFFFC107), // Yellow
+                        ),
+                        child: const Text(
+                          'CHANGE',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+            const SizedBox(height: 16),
+
+            // Language Card
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   Text(
                     'Language',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueGrey[800],
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     key: const Key('settingsLanguageDropdown'),
                     value: _selectedLanguageCode,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF1976D2),
+                          width: 2,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                     items: _languageNames.entries
                         .map(
@@ -269,89 +353,149 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       });
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   ElevatedButton(
                     key: const Key('saveLanguageButton'),
-                    onPressed: _isSavingLanguage ? null : _saveLanguage,
+                    onPressed:
+                        _isSavingLanguage ||
+                            _selectedLanguageCode ==
+                                widget.settings.languageCode
+                        ? null
+                        : _saveLanguage,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFC107), // Yellow
+                      foregroundColor: Colors.black87,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
                     child: Text(
-                      _isSavingLanguage ? 'Saving...' : 'Save language',
+                      _isSavingLanguage ? 'SAVING...' : 'SAVE LANGUAGE',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+            const SizedBox(height: 16),
+
+            // Diagnostic Notification Card
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   Text(
-                    'Notification Test',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    'Diagnostics',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueGrey[800],
+                    ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'This action refreshes your FCM token sync with the backend.',
+                    'Refreshes your FCM token sync to ensure you receive alerts.',
+                    style: TextStyle(color: Colors.black54, fontSize: 13),
                   ),
-                  const SizedBox(height: 12),
-                  ElevatedButton.icon(
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
                     key: const Key('testNotificationButton'),
                     onPressed: _isTestingNotification
                         ? null
                         : _runNotificationTest,
-                    icon: const Icon(Icons.notifications_active_outlined),
+                    icon: const Icon(Icons.sync),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: const BorderSide(color: Color(0xFF1976D2)),
+                      foregroundColor: const Color(0xFF1976D2),
+                    ),
                     label: Text(
                       _isTestingNotification
-                          ? 'Running test...'
-                          : 'Run notification test',
+                          ? 'Running sync...'
+                          : 'Run token sync test',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+            const SizedBox(height: 16),
+
+            // Auto-open Card
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   Text(
-                    'Auto-open alerts',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    'Auto-open Alerts (Android)',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueGrey[800],
+                    ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Android only: allows full-screen notification launch when the screen is off/locked.',
+                    'Allows full-screen notification launch when the screen is locked.',
+                    style: TextStyle(color: Colors.black54, fontSize: 13),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   ElevatedButton.icon(
                     key: const Key('enableFullScreenAlertsButton'),
                     onPressed: _isEnablingAutoOpen
                         ? null
                         : _enableAutoOpenAlerts,
                     icon: const Icon(Icons.screen_lock_portrait_outlined),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1976D2).withOpacity(0.1),
+                      foregroundColor: const Color(0xFF1976D2),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     label: Text(
                       _isEnablingAutoOpen
                           ? 'Opening settings...'
-                          : 'Enable auto-open alerts',
+                          : 'Enable auto-open',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton(
-            key: const Key('settingsChangeCityButton'),
-            onPressed: _changeCity,
-            child: const Text('Change city'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
