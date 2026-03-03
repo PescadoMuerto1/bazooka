@@ -4,12 +4,12 @@ import 'dart:math';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../state/app_settings.dart';
 import 'api_client.dart';
+import 'app_logger.dart';
 
 class PushAlertEvent {
   const PushAlertEvent({
@@ -127,17 +127,35 @@ class PushService implements PushSyncService {
     required AppSettings settings,
     required AlertsApi apiClient,
   }) async {
+    AppLogger.info(
+      'PushService',
+      'initializeAndSync started',
+      <String, Object?>{
+        'hasSelectedCity': settings.hasSelectedCity,
+        'cityKey': settings.cityKey ?? '',
+        'languageCode': settings.languageCode,
+      },
+    );
     if (!settings.hasSelectedCity) {
+      AppLogger.warn('PushService', 'Skipping push sync: no selected city');
       return;
     }
 
     final deviceId = await _loadOrCreateDeviceId();
+    AppLogger.info('PushService', 'Device ID ready', <String, Object?>{
+      'deviceId': deviceId,
+    });
 
     if (!_initialized) {
       try {
         await Firebase.initializeApp();
+        AppLogger.info('PushService', 'Firebase initialized');
       } catch (error) {
-        debugPrint('Firebase initialize skipped: $error');
+        AppLogger.warn(
+          'PushService',
+          'Firebase initialize skipped',
+          <String, Object?>{'error': error.toString()},
+        );
       }
       _initialized = true;
     }
@@ -153,13 +171,19 @@ class PushService implements PushSyncService {
         badge: true,
         sound: true,
       );
+      AppLogger.info('PushService', 'Notification permissions requested');
     } catch (error) {
-      debugPrint('Notification permission request failed: $error');
+      AppLogger.error(
+        'PushService',
+        'Notification permission request failed',
+        error: error,
+      );
       return;
     }
 
     final token = await _safeGetToken();
     if (token == null || token.isEmpty) {
+      AppLogger.warn('PushService', 'FCM token is missing, sync skipped');
       return;
     }
 
@@ -170,8 +194,13 @@ class PushService implements PushSyncService {
         deviceId: deviceId,
         token: token,
       );
+      AppLogger.info('PushService', 'Initial backend sync completed');
     } catch (error) {
-      debugPrint('Initial FCM backend sync failed: $error');
+      AppLogger.error(
+        'PushService',
+        'Initial FCM backend sync failed',
+        error: error,
+      );
     }
 
     _tokenSubscription ??= _messaging.onTokenRefresh.listen((newToken) {
@@ -188,8 +217,13 @@ class PushService implements PushSyncService {
               deviceId: deviceId,
               token: newToken,
             );
+            AppLogger.info('PushService', 'Token refresh sync completed');
           } catch (error) {
-            debugPrint('Token refresh backend sync failed: $error');
+            AppLogger.error(
+              'PushService',
+              'Token refresh backend sync failed',
+              error: error,
+            );
           }
         }),
       );
@@ -198,6 +232,7 @@ class PushService implements PushSyncService {
 
   Future<void> _initializeLocalNotifications() async {
     if (_localNotificationsInitialized) {
+      AppLogger.info('PushService', 'Local notifications already initialized');
       return;
     }
 
@@ -221,34 +256,55 @@ class PushService implements PushSyncService {
     await requestFullScreenIntentPermission();
     await _captureNotificationLaunchPayload();
     _localNotificationsInitialized = true;
+    AppLogger.info('PushService', 'Local notifications initialized');
   }
 
   Future<void> _initializePushEventListeners() async {
     if (_pushListenersInitialized) {
+      AppLogger.info('PushService', 'Push listeners already initialized');
       return;
     }
 
     FirebaseMessaging.onMessage.listen((message) {
+      AppLogger.info(
+        'PushService',
+        'Foreground push received',
+        <String, Object?>{'messageId': message.messageId ?? ''},
+      );
       unawaited(_showForegroundNotification(message));
       _alertEventsController.add(PushAlertEvent.fromRemoteMessage(message));
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      AppLogger.info('PushService', 'Push opened app', <String, Object?>{
+        'messageId': message.messageId ?? '',
+      });
       _alertEventsController.add(PushAlertEvent.fromRemoteMessage(message));
     });
 
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
+      AppLogger.info(
+        'PushService',
+        'Initial push message found',
+        <String, Object?>{'messageId': initialMessage.messageId ?? ''},
+      );
       _alertEventsController.add(
         PushAlertEvent.fromRemoteMessage(initialMessage),
       );
     }
 
     _pushListenersInitialized = true;
+    AppLogger.info('PushService', 'Push listeners initialized');
   }
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     final event = PushAlertEvent.fromRemoteMessage(message);
+    AppLogger.info(
+      'PushService',
+      'Showing foreground notification',
+      <String, Object?>{'title': event.title, 'areasCount': event.areas.length},
+    );
 
     await _localNotificationsPlugin.show(
       event.hashCode,
@@ -266,6 +322,7 @@ class PushService implements PushSyncService {
     }
 
     _pendingLaunchAlertEvent = null;
+    AppLogger.info('PushService', 'Emitting pending launch notification event');
     _alertEventsController.add(pending);
   }
 
@@ -278,6 +335,7 @@ class PushService implements PushSyncService {
     }
 
     _pendingLaunchAlertEvent = PushAlertEvent.fromPayloadJson(payload);
+    AppLogger.info('PushService', 'Captured launch payload from notification');
   }
 
   static Future<void> _createAlertsChannel(
@@ -297,6 +355,7 @@ class PushService implements PushSyncService {
           AndroidFlutterLocalNotificationsPlugin
         >();
     await androidPlugin?.createNotificationChannel(channel);
+    AppLogger.info('PushService', 'Android alerts channel ensured');
   }
 
   static NotificationDetails _alertNotificationDetails() {
@@ -321,10 +380,16 @@ class PushService implements PushSyncService {
   static Future<void> showBackgroundAlertNotification(
     RemoteMessage message,
   ) async {
+    AppLogger.info(
+      'PushService',
+      'Showing background notification',
+      <String, Object?>{'messageId': message.messageId ?? ''},
+    );
     try {
       await Firebase.initializeApp();
     } catch (_) {
       // Firebase can already be initialized in this isolate.
+      AppLogger.warn('PushService', 'Background Firebase initialize skipped');
     }
 
     final plugin = FlutterLocalNotificationsPlugin();
@@ -342,6 +407,7 @@ class PushService implements PushSyncService {
       _alertNotificationDetails(),
       payload: jsonEncode(event.toJson()),
     );
+    AppLogger.info('PushService', 'Background notification shown');
   }
 
   @override
@@ -351,6 +417,10 @@ class PushService implements PushSyncService {
           AndroidFlutterLocalNotificationsPlugin
         >();
     if (androidPlugin == null) {
+      AppLogger.info(
+        'PushService',
+        'No Android notifications plugin; permission assumed granted',
+      );
       return true;
     }
 
@@ -358,14 +428,30 @@ class PushService implements PushSyncService {
         await androidPlugin.requestNotificationsPermission() ?? true;
     final fullScreenGranted =
         await androidPlugin.requestFullScreenIntentPermission() ?? true;
+    AppLogger.info(
+      'PushService',
+      'Requested full-screen intent permissions',
+      <String, Object?>{
+        'notificationsGranted': notificationsGranted,
+        'fullScreenGranted': fullScreenGranted,
+      },
+    );
     return notificationsGranted && fullScreenGranted;
   }
 
   Future<String?> _safeGetToken() async {
     try {
-      return await _messaging.getToken();
+      final token = await _messaging.getToken();
+      AppLogger.info('PushService', 'FCM token fetched', <String, Object?>{
+        'hasToken': token != null && token.isNotEmpty,
+      });
+      return token;
     } catch (error) {
-      debugPrint('FCM token retrieval failed: $error');
+      AppLogger.error(
+        'PushService',
+        'FCM token retrieval failed',
+        error: error,
+      );
       return null;
     }
   }
@@ -379,9 +465,22 @@ class PushService implements PushSyncService {
     final cityKey = settings.cityKey;
     final cityDisplay = settings.cityDisplay;
     if (cityKey == null || cityDisplay == null) {
+      AppLogger.warn(
+        'PushService',
+        'Skipping backend sync: city settings missing',
+      );
       return;
     }
 
+    AppLogger.info(
+      'PushService',
+      'Syncing backend registration and subscription',
+      <String, Object?>{
+        'deviceId': deviceId,
+        'cityKey': cityKey,
+        'lang': settings.languageCode,
+      },
+    );
     await apiClient.registerDevice(
       deviceId: deviceId,
       fcmToken: token,
@@ -395,18 +494,24 @@ class PushService implements PushSyncService {
       cityDisplay: cityDisplay,
       lang: settings.languageCode,
     );
+    AppLogger.info('PushService', 'Backend sync succeeded', <String, Object?>{
+      'deviceId': deviceId,
+      'cityKey': cityKey,
+    });
   }
 
   Future<String> _loadOrCreateDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
     final existing = prefs.getString(_deviceIdStorageKey);
     if (existing != null && existing.isNotEmpty) {
+      AppLogger.info('PushService', 'Loaded existing device ID');
       return existing;
     }
 
     final generated =
         'android-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
     await prefs.setString(_deviceIdStorageKey, generated);
+    AppLogger.info('PushService', 'Generated new device ID');
     return generated;
   }
 }

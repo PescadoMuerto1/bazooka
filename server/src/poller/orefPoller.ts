@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { appendFile, mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { config } from "../config.js";
+import { logError, logInfo, logWarn } from "../logger.js";
 import { AlertModel } from "../models/alert.js";
 import { fanoutAlertToSubscribedDevices } from "./fcmFanout.js";
 import type { NormalizedAlert, RawOrefAlert } from "../types.js";
@@ -111,6 +112,11 @@ async function fetchOrefPayload(): Promise<unknown> {
   const timeout = setTimeout(() => abortController.abort(), config.orefRequestTimeoutMs);
 
   try {
+    logInfo("oref_fetch_started", {
+      feedUrl: config.orefFeedUrl,
+      timeoutMs: config.orefRequestTimeoutMs
+    });
+
     const response = await fetch(config.orefFeedUrl, {
       signal: abortController.signal,
       headers: {
@@ -134,9 +140,11 @@ async function fetchOrefPayload(): Promise<unknown> {
     } catch {
       const contentType = response.headers.get("content-type") ?? "unknown";
       const bodyPreview = normalizedBody.slice(0, 120);
-      console.warn(
-        `Oref feed returned invalid JSON, ignoring this poll. status=${response.status} content-type=${contentType} preview=${JSON.stringify(bodyPreview)}`
-      );
+      logWarn("oref_fetch_invalid_json", {
+        status: response.status,
+        contentType,
+        bodyPreview
+      });
       return [];
     }
   } finally {
@@ -168,10 +176,12 @@ export async function pollOrefOnce(): Promise<number> {
   const rawAlerts = toRawAlerts(payload);
 
   if (rawAlerts.length === 0) {
+    logInfo("oref_poll_no_alerts");
     return 0;
   }
 
   let insertedCount = 0;
+  let duplicateCount = 0;
   for (const rawAlert of rawAlerts) {
     const normalized = normalizeAlert(rawAlert);
     if (!normalized) {
@@ -180,6 +190,7 @@ export async function pollOrefOnce(): Promise<number> {
 
     const existing = await AlertModel.exists({ alertId: normalized.alertId });
     if (existing) {
+      duplicateCount += 1;
       continue;
     }
 
@@ -196,29 +207,48 @@ export async function pollOrefOnce(): Promise<number> {
     try {
       await appendAlertToLog(normalized);
     } catch (error) {
-      console.warn("Failed to append alert to Oref alerts log", error);
+      logWarn("oref_alert_file_append_failed", {
+        alertId: normalized.alertId,
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
 
     const fanoutResult = await fanoutAlertToSubscribedDevices(normalized);
     if (fanoutResult.matchedSubscriptions > 0) {
-      console.log(
-        `Alert ${normalized.alertId} fanout matched=${fanoutResult.matchedSubscriptions} sent=${fanoutResult.sent} failed=${fanoutResult.failed}`
-      );
+      logInfo("alert_fanout_completed", {
+        alertId: normalized.alertId,
+        matchedSubscriptions: fanoutResult.matchedSubscriptions,
+        sent: fanoutResult.sent,
+        failed: fanoutResult.failed
+      });
     }
+
+    logInfo("oref_alert_inserted", {
+      alertId: normalized.alertId,
+      category: normalized.category,
+      areasCount: normalized.areas.length
+    });
 
     insertedCount += 1;
   }
+
+  logInfo("oref_poll_processed", {
+    rawCount: rawAlerts.length,
+    insertedCount,
+    duplicateCount
+  });
 
   return insertedCount;
 }
 
 export function startOrefPoller(): void {
   if (!config.orefPollerEnabled) {
-    console.log("Oref poller disabled by config");
+    logInfo("oref_poller_disabled_by_config");
     return;
   }
 
   if (pollTimer) {
+    logWarn("oref_poller_start_skipped_already_running");
     return;
   }
 
@@ -232,14 +262,15 @@ export function startOrefPoller(): void {
     try {
       const insertedCount = await pollOrefOnce();
       const durationMs = Date.now() - startedAt;
-      console.log(`Oref poller tick inserted=${insertedCount} durationMs=${durationMs}`);
+      logInfo("oref_poller_tick_completed", { insertedCount, durationMs });
     } catch (error) {
-      console.error("Oref poller run failed", error);
+      logError("oref_poller_tick_failed", error);
     } finally {
       isPolling = false;
     }
   };
 
+  logInfo("oref_poller_started", { intervalMs: config.orefPollIntervalMs });
   void executePoll();
   pollTimer = setInterval(() => {
     void executePoll();
@@ -248,9 +279,11 @@ export function startOrefPoller(): void {
 
 export function stopOrefPoller(): void {
   if (!pollTimer) {
+    logWarn("oref_poller_stop_skipped_not_running");
     return;
   }
 
   clearInterval(pollTimer);
   pollTimer = null;
+  logInfo("oref_poller_stopped");
 }

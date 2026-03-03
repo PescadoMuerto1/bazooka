@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/app_logger.dart';
+
 class AppSettings extends ChangeNotifier {
   static const _cityKeyStorage = 'city_key';
   static const _cityDisplayStorage = 'city_display';
@@ -21,18 +23,30 @@ class AppSettings extends ChangeNotifier {
   }
 
   Future<void> load() async {
+    AppLogger.info('AppSettings', 'Loading persisted settings');
     final prefs = await SharedPreferences.getInstance();
     _cityKey = prefs.getString(_cityKeyStorage);
     _cityDisplay = prefs.getString(_cityDisplayStorage);
     _languageCode = prefs.getString(_languageCodeStorage) ?? 'he';
     _isLoaded = true;
+    AppLogger.info('AppSettings', 'Settings loaded', <String, Object?>{
+      'hasSelectedCity': hasSelectedCity,
+      'languageCode': _languageCode,
+      'cityKey': _cityKey ?? '',
+    });
     notifyListeners();
   }
 
   Future<void> updateLanguage(String languageCode) async {
+    AppLogger.info('AppSettings', 'Updating language', <String, Object?>{
+      'languageCode': languageCode,
+    });
     _languageCode = languageCode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_languageCodeStorage, _languageCode);
+    AppLogger.info('AppSettings', 'Language updated', <String, Object?>{
+      'languageCode': _languageCode,
+    });
     notifyListeners();
   }
 
@@ -41,6 +55,11 @@ class AppSettings extends ChangeNotifier {
     required String cityDisplay,
     required String languageCode,
   }) async {
+    AppLogger.info('AppSettings', 'Updating city selection', <String, Object?>{
+      'cityKey': cityKey,
+      'cityDisplay': cityDisplay,
+      'languageCode': languageCode,
+    });
     _cityKey = cityKey;
     _cityDisplay = cityDisplay;
     _languageCode = languageCode;
@@ -52,10 +71,12 @@ class AppSettings extends ChangeNotifier {
       prefs.setString(_languageCodeStorage, languageCode),
     ]);
 
+    AppLogger.info('AppSettings', 'City selection updated');
     notifyListeners();
   }
 
   Future<void> clearCitySelection() async {
+    AppLogger.info('AppSettings', 'Clearing city selection');
     _cityKey = null;
     _cityDisplay = null;
 
@@ -65,6 +86,7 @@ class AppSettings extends ChangeNotifier {
       prefs.remove(_cityDisplayStorage),
     ]);
 
+    AppLogger.info('AppSettings', 'City selection cleared');
     notifyListeners();
   }
 }

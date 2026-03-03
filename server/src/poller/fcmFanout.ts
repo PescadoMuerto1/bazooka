@@ -4,6 +4,7 @@ import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getMessaging, type Messaging } from "firebase-admin/messaging";
 import { config } from "../config.js";
 import { mapAlertAreasToCityKeys } from "../data/cities.js";
+import { logError, logInfo, logWarn } from "../logger.js";
 import { DeliveryModel } from "../models/delivery.js";
 import { DeviceModel } from "../models/device.js";
 import { SubscriptionModel } from "../models/subscription.js";
@@ -29,6 +30,7 @@ function getServiceAccountPath(): string | null {
 
 function initFirebaseMessaging(): Messaging | null {
   if (!config.fcmEnabled) {
+    logInfo("fcm_disabled_by_config");
     return null;
   }
 
@@ -40,6 +42,7 @@ function initFirebaseMessaging(): Messaging | null {
     if (getApps().length === 0) {
       const serviceAccountPath = getServiceAccountPath();
       if (serviceAccountPath) {
+        logInfo("fcm_init_using_service_account_file", { serviceAccountPath });
         const fileContent = readFileSync(serviceAccountPath, "utf8");
         const serviceAccountJson = JSON.parse(fileContent) as Record<string, unknown>;
         initializeApp({
@@ -50,14 +53,16 @@ function initFirebaseMessaging(): Messaging | null {
           })
         });
       } else {
+        logInfo("fcm_init_using_default_credentials");
         initializeApp();
       }
     }
 
     messagingClient = getMessaging();
+    logInfo("fcm_init_succeeded");
     return messagingClient;
   } catch (error) {
-    console.error("FCM initialization failed", error);
+    logError("fcm_init_failed", error);
     messagingClient = null;
     return null;
   }
@@ -96,6 +101,7 @@ export async function fanoutAlertToSubscribedDevices(
 ): Promise<{ matchedSubscriptions: number; sent: number; failed: number }> {
   const candidateCityKeys = mapAlertAreasToCityKeys(alert.areas);
   if (candidateCityKeys.length === 0) {
+    logInfo("fanout_skipped_no_candidate_city_keys", { alertId: alert.alertId });
     return { matchedSubscriptions: 0, sent: 0, failed: 0 };
   }
 
@@ -104,8 +110,17 @@ export async function fanoutAlertToSubscribedDevices(
   }).exec();
 
   if (subscriptions.length === 0) {
+    logInfo("fanout_skipped_no_subscriptions", {
+      alertId: alert.alertId,
+      candidateCityKeys
+    });
     return { matchedSubscriptions: 0, sent: 0, failed: 0 };
   }
+
+  logInfo("fanout_started", {
+    alertId: alert.alertId,
+    subscriptionCount: subscriptions.length
+  });
 
   const deviceIds = subscriptions.map((subscription) => subscription.deviceId);
   const devices = await DeviceModel.find({ deviceId: { $in: deviceIds } }).exec();
@@ -122,11 +137,19 @@ export async function fanoutAlertToSubscribedDevices(
     const deliveryId = buildDeliveryId(alert.alertId, subscription.deviceId);
     const deliveryExists = await DeliveryModel.exists({ deliveryId });
     if (deliveryExists) {
+      logInfo("fanout_delivery_skipped_already_exists", {
+        alertId: alert.alertId,
+        deviceId: subscription.deviceId
+      });
       continue;
     }
 
     const device = devicesById.get(subscription.deviceId);
     if (!device) {
+      logWarn("fanout_device_missing", {
+        alertId: alert.alertId,
+        deviceId: subscription.deviceId
+      });
       await createDeliveryLog({
         alertId: alert.alertId,
         deviceId: subscription.deviceId,
@@ -138,6 +161,10 @@ export async function fanoutAlertToSubscribedDevices(
     }
 
     if (!messaging) {
+      logWarn("fanout_skipped_fcm_not_initialized", {
+        alertId: alert.alertId,
+        deviceId: subscription.deviceId
+      });
       await createDeliveryLog({
         alertId: alert.alertId,
         deviceId: subscription.deviceId,
@@ -168,8 +195,17 @@ export async function fanoutAlertToSubscribedDevices(
         deviceId: subscription.deviceId,
         status: "sent"
       });
+      logInfo("fanout_send_succeeded", {
+        alertId: alert.alertId,
+        deviceId: subscription.deviceId
+      });
       sent += 1;
     } catch (error) {
+      logWarn("fanout_send_failed", {
+        alertId: alert.alertId,
+        deviceId: subscription.deviceId,
+        error: sanitizeError(error)
+      });
       await createDeliveryLog({
         alertId: alert.alertId,
         deviceId: subscription.deviceId,
@@ -180,9 +216,14 @@ export async function fanoutAlertToSubscribedDevices(
     }
   }
 
-  return {
+  const result = {
     matchedSubscriptions: subscriptions.length,
     sent,
     failed
   };
+  logInfo("fanout_completed", {
+    alertId: alert.alertId,
+    ...result
+  });
+  return result;
 }

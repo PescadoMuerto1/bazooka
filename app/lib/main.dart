@@ -5,27 +5,49 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:app/screens/alerts_screen.dart';
 import 'package:app/screens/city_setup_screen.dart';
 import 'package:app/services/api_client.dart';
+import 'package:app/services/app_logger.dart';
 import 'package:app/services/push_service.dart';
 import 'package:app/state/app_settings.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await PushService.showBackgroundAlertNotification(message);
+  AppLogger.info('Main', 'Background push received', <String, Object?>{
+    'messageId': message.messageId ?? '',
+    'dataKeys': message.data.keys.toList(growable: false),
+  });
+  try {
+    await PushService.showBackgroundAlertNotification(message);
+    AppLogger.info('Main', 'Background push notification shown');
+  } catch (error, stackTrace) {
+    AppLogger.error(
+      'Main',
+      'Background push handler failed',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppLogger.info('Main', 'App startup begin');
   try {
     await dotenv.load(fileName: '.env');
+    AppLogger.info('Main', '.env loaded');
   } catch (_) {
     // Fall back to defaults/dart-define when .env is missing.
+    AppLogger.warn('Main', '.env missing, using defaults');
   }
   try {
     await Firebase.initializeApp();
+    AppLogger.info('Main', 'Firebase initialized');
   } catch (_) {
     // Allow startup even when Firebase native config is not present yet.
+    AppLogger.warn('Main', 'Firebase initialize skipped');
   }
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  AppLogger.info('Main', 'Background message handler registered');
+  AppLogger.info('Main', 'Running MyApp');
   runApp(const MyApp());
 }
 
@@ -53,6 +75,7 @@ class _MyAppState extends State<MyApp> {
     _apiClient = widget.apiClient ?? ApiClient();
     _pushService = widget.pushService ?? PushService();
     _initialLoad = _settings.load();
+    AppLogger.info('Main', 'MyApp state initialized');
   }
 
   @override

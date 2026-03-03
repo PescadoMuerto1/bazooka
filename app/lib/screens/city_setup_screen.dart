@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../services/app_logger.dart';
 import '../state/app_settings.dart';
 
 class CityOption {
@@ -50,11 +52,23 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
     super.initState();
     _selectedCityKey = widget.settings.cityKey;
     _selectedLanguageCode = widget.settings.languageCode;
+    AppLogger.info(
+      'CitySetupScreen',
+      'Initialized city setup screen',
+      <String, Object?>{
+        'selectedCityKey': _selectedCityKey ?? '',
+        'selectedLanguageCode': _selectedLanguageCode,
+      },
+    );
   }
 
   Future<void> _saveSelection() async {
     final cityKey = _selectedCityKey;
     if (cityKey == null || _isSaving) {
+      AppLogger.warn('CitySetupScreen', 'Save skipped', <String, Object?>{
+        'hasCity': cityKey != null,
+        'isSaving': _isSaving,
+      });
       return;
     }
 
@@ -63,6 +77,15 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
     setState(() {
       _isSaving = true;
     });
+    AppLogger.info(
+      'CitySetupScreen',
+      'Saving city selection',
+      <String, Object?>{
+        'cityKey': city.key,
+        'cityDisplay': city.displayName,
+        'languageCode': _selectedLanguageCode,
+      },
+    );
 
     await widget.settings.updateCitySelection(
       cityKey: city.key,
@@ -77,6 +100,7 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
     setState(() {
       _isSaving = false;
     });
+    AppLogger.info('CitySetupScreen', 'City selection saved');
 
     ScaffoldMessenger.of(
       context,

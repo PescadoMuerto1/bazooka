@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../services/app_logger.dart';
+
 class NotificationPopupScreen extends StatefulWidget {
   const NotificationPopupScreen({
     super.key,
@@ -25,6 +27,10 @@ class _NotificationPopupScreenState extends State<NotificationPopupScreen> {
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
+    AppLogger.info('NotificationPopup', 'Popup opened', <String, Object?>{
+      'title': widget.title,
+      'areasCount': widget.areas.length,
+    });
     _startAlertSong();
   }
 
@@ -32,13 +38,21 @@ class _NotificationPopupScreenState extends State<NotificationPopupScreen> {
     try {
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
       await _audioPlayer.play(AssetSource('alert_song.mp3'));
-    } catch (_) {
+      AppLogger.info('NotificationPopup', 'Alert song started');
+    } catch (error, stackTrace) {
       // Keep popup functional even if playback fails on a specific device.
+      AppLogger.error(
+        'NotificationPopup',
+        'Alert song playback failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
   @override
   void dispose() {
+    AppLogger.info('NotificationPopup', 'Popup disposed');
     _audioPlayer.stop();
     _audioPlayer.dispose();
     super.dispose();
@@ -88,7 +102,13 @@ class _NotificationPopupScreenState extends State<NotificationPopupScreen> {
                     const SizedBox(height: 24),
                     FilledButton(
                       key: const Key('closeNotificationPopupButton'),
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () {
+                        AppLogger.info(
+                          'NotificationPopup',
+                          'Close button pressed',
+                        );
+                        Navigator.of(context).pop();
+                      },
                       child: const Text('Close'),
                     ),
                   ],
