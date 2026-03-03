@@ -15,7 +15,6 @@ let messagingClient: Messaging | null | undefined;
 const SERVER_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const MAX_TITLE_LENGTH = 120;
 const MAX_BODY_LENGTH = 220;
-const MAX_AREAS_PAYLOAD_LENGTH = 180;
 
 function getFirstExistingPath(candidates: string[]): string | null {
   for (const candidate of candidates) {
@@ -121,21 +120,27 @@ function truncateText(value: string, maxLength: number): string {
   return `${value.slice(0, maxLength - 3)}...`;
 }
 
-function buildAreasPayload(areas: string[]): string {
-  const normalized = areas
-    .map((value) => value.trim())
-    .filter((value) => value.length > 0);
-  if (normalized.length === 0) {
-    return "";
+function deriveAlertType(alert: NormalizedAlert): "rocket_active" | "uav_active" | "pre_alert" | "all_clear" | "update" {
+  if (alert.category === "1") {
+    return "rocket_active";
   }
 
-  const full = normalized.join(",");
-  if (full.length <= MAX_AREAS_PAYLOAD_LENGTH) {
-    return full;
+  if (alert.category === "6") {
+    return "uav_active";
   }
 
-  const preview = normalized.slice(0, 3).join(",");
-  return truncateText(preview, MAX_AREAS_PAYLOAD_LENGTH);
+  if (alert.category === "10") {
+    const title = alert.title.trim();
+    if (title.includes("בדקות הקרובות")) {
+      return "pre_alert";
+    }
+    if (title.includes("האירוע הסתיים")) {
+      return "all_clear";
+    }
+    return "update";
+  }
+
+  return "update";
 }
 
 async function createDeliveryLog(input: {
@@ -239,17 +244,17 @@ export async function fanoutAlertToSubscribedDevices(
         alert.desc.length > 0 ? alert.desc : "New Home Front alert",
         MAX_BODY_LENGTH
       );
-      const areasPayload = buildAreasPayload(alert.areas);
+      const alertType = deriveAlertType(alert);
 
       await messaging.send({
         token: device.fcmToken,
         data: {
           alertId: alert.alertId,
+          type: alertType,
           title: messageTitle,
           body: messageBody,
-          category: alert.category,
-          areas: areasPayload,
-          areasCount: String(alert.areas.length)
+          areasCount: String(alert.areas.length),
+          matchedCityKey: subscription.cityKey
         },
         android: {
           priority: "high"
