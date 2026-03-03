@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getMessaging, type Messaging } from "firebase-admin/messaging";
 import { config } from "../config.js";
@@ -11,17 +12,42 @@ import { SubscriptionModel } from "../models/subscription.js";
 import type { NormalizedAlert } from "../types.js";
 
 let messagingClient: Messaging | null | undefined;
+const SERVER_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-function getServiceAccountPath(): string | null {
-  if (config.firebaseServiceAccountPath) {
-    const absolute = path.resolve(config.firebaseServiceAccountPath);
-    if (existsSync(absolute)) {
-      return absolute;
+function getFirstExistingPath(candidates: string[]): string | null {
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
     }
   }
 
-  const defaultPath = path.resolve(process.cwd(), "serviceAccountKey.json");
-  if (existsSync(defaultPath)) {
+  return null;
+}
+
+function getServiceAccountPath(): string | null {
+  if (config.firebaseServiceAccountPath) {
+    const configuredPath = config.firebaseServiceAccountPath;
+    const candidates = path.isAbsolute(configuredPath)
+      ? [configuredPath]
+      : [path.resolve(SERVER_ROOT, configuredPath), path.resolve(process.cwd(), configuredPath)];
+
+    const resolved = getFirstExistingPath(candidates);
+    if (resolved) {
+      return resolved;
+    }
+
+    logWarn("fcm_service_account_path_not_found", {
+      configuredPath,
+      cwd: process.cwd(),
+      candidates
+    });
+  }
+
+  const defaultPath = getFirstExistingPath([
+    path.resolve(SERVER_ROOT, "serviceAccountKey.json"),
+    path.resolve(process.cwd(), "serviceAccountKey.json")
+  ]);
+  if (defaultPath) {
     return defaultPath;
   }
 

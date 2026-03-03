@@ -46,6 +46,23 @@ cp .env.example .env
 npm run dev
 ```
 
+## Backend Dev Tools Page
+
+When backend is running, open:
+
+- `http://127.0.0.1:3000/dev/tools`
+
+This page includes:
+
+- Quick buttons to send fake alerts (Tel Aviv, Haifa, Jerusalem, multi-city).
+- Custom fake alert form (title, desc, areas, category).
+- Live backend state panel (devices, subscriptions, deliveries).
+
+Config:
+
+- `DEV_TOOLS_ENABLED=true` in `server/.env` (enabled by default in `.env.example`).
+- Set to `false` to disable this page/routes.
+
 ## Run Android App
 
 ```bash
