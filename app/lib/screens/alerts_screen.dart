@@ -82,7 +82,12 @@ class _AlertsScreenState extends State<AlertsScreen> {
     AppLogger.info(
       'AlertsScreen',
       'Push alert event received',
-      <String, Object?>{'title': event.title, 'areasCount': event.areas.length},
+      <String, Object?>{
+        'title': event.title,
+        'areasCount': event.areasCount,
+        'matchedCityKey': event.matchedCityKey,
+        'type': event.type,
+      },
     );
 
     Navigator.of(context).push(
@@ -90,6 +95,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
         builder: (context) => NotificationPopupScreen(
           title: event.title,
           body: event.body,
+          type: event.type,
+          areasCount: event.areasCount,
+          matchedCityKey: event.matchedCityKey,
           areas: event.areas,
         ),
       ),

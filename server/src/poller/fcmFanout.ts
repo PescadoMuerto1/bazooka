@@ -13,6 +13,8 @@ import type { NormalizedAlert } from "../types.js";
 
 let messagingClient: Messaging | null | undefined;
 const SERVER_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const MAX_TITLE_LENGTH = 120;
+const MAX_BODY_LENGTH = 220;
 
 function getFirstExistingPath(candidates: string[]): string | null {
   for (const candidate of candidates) {
@@ -104,6 +106,41 @@ function sanitizeError(error: unknown): string {
   }
 
   return String(error);
+}
+
+function truncateText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  if (maxLength <= 3) {
+    return value.slice(0, maxLength);
+  }
+
+  return `${value.slice(0, maxLength - 3)}...`;
+}
+
+function deriveAlertType(alert: NormalizedAlert): "rocket_active" | "uav_active" | "pre_alert" | "all_clear" | "update" {
+  if (alert.category === "1") {
+    return "rocket_active";
+  }
+
+  if (alert.category === "6") {
+    return "uav_active";
+  }
+
+  if (alert.category === "10") {
+    const title = alert.title.trim();
+    if (title.includes("בדקות הקרובות")) {
+      return "pre_alert";
+    }
+    if (title.includes("האירוע הסתיים")) {
+      return "all_clear";
+    }
+    return "update";
+  }
+
+  return "update";
 }
 
 async function createDeliveryLog(input: {
@@ -202,14 +239,22 @@ export async function fanoutAlertToSubscribedDevices(
     }
 
     try {
+      const messageTitle = truncateText(alert.title, MAX_TITLE_LENGTH);
+      const messageBody = truncateText(
+        alert.desc.length > 0 ? alert.desc : "New Home Front alert",
+        MAX_BODY_LENGTH
+      );
+      const alertType = deriveAlertType(alert);
+
       await messaging.send({
         token: device.fcmToken,
         data: {
           alertId: alert.alertId,
-          title: alert.title,
-          body: alert.desc.length > 0 ? alert.desc : "New Home Front alert",
-          category: alert.category,
-          areas: alert.areas.join(",")
+          type: alertType,
+          title: messageTitle,
+          body: messageBody,
+          areasCount: String(alert.areas.length),
+          matchedCityKey: subscription.cityKey
         },
         android: {
           priority: "high"
