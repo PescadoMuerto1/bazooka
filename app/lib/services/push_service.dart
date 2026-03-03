@@ -15,12 +15,31 @@ class PushAlertEvent {
   const PushAlertEvent({
     required this.title,
     required this.body,
+    required this.type,
+    required this.areasCount,
+    required this.matchedCityKey,
     required this.areas,
   });
 
   final String title;
   final String body;
+  final String type;
+  final int areasCount;
+  final String matchedCityKey;
   final List<String> areas;
+
+  static int _parseAreasCount(Object? rawValue, int fallback) {
+    if (rawValue == null) {
+      return fallback;
+    }
+
+    final parsed = int.tryParse(rawValue.toString());
+    if (parsed == null || parsed < 0) {
+      return fallback;
+    }
+
+    return parsed;
+  }
 
   factory PushAlertEvent.fromRemoteMessage(RemoteMessage message) {
     final notification = message.notification;
@@ -31,6 +50,9 @@ class PushAlertEvent {
         .map((value) => value.trim())
         .where((value) => value.isNotEmpty)
         .toList(growable: false);
+    final matchedCityKey = message.data['matchedCityKey']?.toString().trim() ?? '';
+    final type = message.data['type']?.toString().trim() ?? 'update';
+    final areasCount = _parseAreasCount(message.data['areasCount'], areas.length);
 
     return PushAlertEvent(
       title:
@@ -38,6 +60,9 @@ class PushAlertEvent {
           message.data['title']?.toString() ??
           'Bazooka Alert',
       body: notification?.body ?? message.data['body']?.toString() ?? '',
+      type: type.isEmpty ? 'update' : type,
+      areasCount: areasCount,
+      matchedCityKey: matchedCityKey,
       areas: areas,
     );
   }
@@ -49,6 +74,9 @@ class PushAlertEvent {
         return const PushAlertEvent(
           title: 'Bazooka Alert',
           body: '',
+          type: 'update',
+          areasCount: 0,
+          matchedCityKey: '',
           areas: <String>[],
         );
       }
@@ -61,23 +89,39 @@ class PushAlertEvent {
                 .where((value) => value.isNotEmpty)
                 .toList(growable: false)
           : const <String>[];
+      final type = decoded['type']?.toString().trim() ?? 'update';
+      final matchedCityKey = decoded['matchedCityKey']?.toString().trim() ?? '';
+      final areasCount = _parseAreasCount(decoded['areasCount'], areas.length);
 
       return PushAlertEvent(
         title: decoded['title']?.toString() ?? 'Bazooka Alert',
         body: decoded['body']?.toString() ?? '',
+        type: type.isEmpty ? 'update' : type,
+        areasCount: areasCount,
+        matchedCityKey: matchedCityKey,
         areas: areas,
       );
     } catch (_) {
       return const PushAlertEvent(
         title: 'Bazooka Alert',
         body: '',
+        type: 'update',
+        areasCount: 0,
+        matchedCityKey: '',
         areas: <String>[],
       );
     }
   }
 
   Map<String, dynamic> toJson() {
-    return <String, dynamic>{'title': title, 'body': body, 'areas': areas};
+    return <String, dynamic>{
+      'title': title,
+      'body': body,
+      'type': type,
+      'areasCount': areasCount,
+      'matchedCityKey': matchedCityKey,
+      'areas': areas,
+    };
   }
 }
 
@@ -303,7 +347,7 @@ class PushService implements PushSyncService {
     AppLogger.info(
       'PushService',
       'Showing foreground notification',
-      <String, Object?>{'title': event.title, 'areasCount': event.areas.length},
+      <String, Object?>{'title': event.title, 'areasCount': event.areasCount, 'type': event.type},
     );
 
     await _localNotificationsPlugin.show(

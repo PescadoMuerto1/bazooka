@@ -9,11 +9,17 @@ class NotificationPopupScreen extends StatefulWidget {
     super.key,
     required this.title,
     required this.body,
+    required this.type,
+    required this.areasCount,
+    required this.matchedCityKey,
     required this.areas,
   });
 
   final String title;
   final String body;
+  final String type;
+  final int areasCount;
+  final String matchedCityKey;
   final List<String> areas;
 
   @override
@@ -37,7 +43,9 @@ class _NotificationPopupScreenState extends State<NotificationPopupScreen>
     )..repeat();
     AppLogger.info('NotificationPopup', 'Popup opened', <String, Object?>{
       'title': widget.title,
-      'areasCount': widget.areas.length,
+      'type': widget.type,
+      'areasCount': widget.areasCount,
+      'matchedCityKey': widget.matchedCityKey,
     });
     _startAlertSong();
   }
@@ -69,9 +77,13 @@ class _NotificationPopupScreenState extends State<NotificationPopupScreen>
 
   @override
   Widget build(BuildContext context) {
-    final areaText = widget.areas.isEmpty
-        ? 'Unknown area'
-        : widget.areas.join(', ');
+    final areaText = widget.areas.isNotEmpty
+        ? widget.areas.join(', ')
+        : widget.matchedCityKey.trim().isNotEmpty
+        ? '${widget.matchedCityKey} (${widget.areasCount} areas)'
+        : widget.areasCount > 0
+        ? '${widget.areasCount} areas'
+        : 'Unknown area';
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFC107), // App Yellow
