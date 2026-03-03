@@ -205,6 +205,7 @@ function renderDevToolsHtml(): string {
         <button id="btnTelAviv">Send Tel Aviv Test</button>
         <button id="btnHaifa">Send Haifa Test</button>
         <button id="btnJerusalem">Send Jerusalem Test</button>
+        <button id="btnBeitShemesh">Send Beit Shemesh Test</button>
         <button id="btnMulti">Send Multi-City Test</button>
       </div>
       <div class="status" id="quickStatus"></div>
@@ -301,6 +302,21 @@ function renderDevToolsHtml(): string {
         category: "test"
       });
       setStatus(quickStatus, result.ok, result.ok ? "Jerusalem alert sent" : "Failed to send Jerusalem alert");
+      await refreshState();
+    });
+
+    document.getElementById("btnBeitShemesh").addEventListener("click", async () => {
+      const result = await sendAlert({
+        title: "Beit Shemesh Test Alert",
+        desc: "Quick test from backend dev tools",
+        areas: ["בית שמש"],
+        category: "test"
+      });
+      setStatus(
+        quickStatus,
+        result.ok,
+        result.ok ? "Beit Shemesh alert sent" : "Failed to send Beit Shemesh alert"
+      );
       await refreshState();
     });
 
