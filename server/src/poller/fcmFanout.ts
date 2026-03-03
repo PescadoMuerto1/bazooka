@@ -13,6 +13,9 @@ import type { NormalizedAlert } from "../types.js";
 
 let messagingClient: Messaging | null | undefined;
 const SERVER_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const MAX_TITLE_LENGTH = 120;
+const MAX_BODY_LENGTH = 220;
+const MAX_AREAS_PAYLOAD_LENGTH = 180;
 
 function getFirstExistingPath(candidates: string[]): string | null {
   for (const candidate of candidates) {
@@ -104,6 +107,35 @@ function sanitizeError(error: unknown): string {
   }
 
   return String(error);
+}
+
+function truncateText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  if (maxLength <= 3) {
+    return value.slice(0, maxLength);
+  }
+
+  return `${value.slice(0, maxLength - 3)}...`;
+}
+
+function buildAreasPayload(areas: string[]): string {
+  const normalized = areas
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  if (normalized.length === 0) {
+    return "";
+  }
+
+  const full = normalized.join(",");
+  if (full.length <= MAX_AREAS_PAYLOAD_LENGTH) {
+    return full;
+  }
+
+  const preview = normalized.slice(0, 3).join(",");
+  return truncateText(preview, MAX_AREAS_PAYLOAD_LENGTH);
 }
 
 async function createDeliveryLog(input: {
@@ -202,14 +234,22 @@ export async function fanoutAlertToSubscribedDevices(
     }
 
     try {
+      const messageTitle = truncateText(alert.title, MAX_TITLE_LENGTH);
+      const messageBody = truncateText(
+        alert.desc.length > 0 ? alert.desc : "New Home Front alert",
+        MAX_BODY_LENGTH
+      );
+      const areasPayload = buildAreasPayload(alert.areas);
+
       await messaging.send({
         token: device.fcmToken,
         data: {
           alertId: alert.alertId,
-          title: alert.title,
-          body: alert.desc.length > 0 ? alert.desc : "New Home Front alert",
+          title: messageTitle,
+          body: messageBody,
           category: alert.category,
-          areas: alert.areas.join(",")
+          areas: areasPayload,
+          areasCount: String(alert.areas.length)
         },
         android: {
           priority: "high"
