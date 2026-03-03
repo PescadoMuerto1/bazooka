@@ -84,6 +84,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - .env
     - assets/alert_song.mp3
     - assets/icon.png
     - assets/splash.png
