@@ -170,6 +170,24 @@ async function appendAlertToLog(alert: NormalizedAlert): Promise<void> {
   await appendFile(alertsLogPath, toAlertLogLine(alert), "utf8");
 }
 
+const DEDUP_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
+
+async function findRecentMatchingAlert(normalized: NormalizedAlert) {
+  // First check for exact alertId match
+  const exactMatch = await AlertModel.findOne({ alertId: normalized.alertId }).exec();
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  // Then check for a recent alert with the same title+category (different Oref ID, same event)
+  const windowStart = new Date(Date.now() - DEDUP_WINDOW_MS);
+  return AlertModel.findOne({
+    title: normalized.title,
+    category: normalized.category,
+    ingestedAt: { $gte: windowStart }
+  }).sort({ ingestedAt: -1 }).exec();
+}
+
 export async function pollOrefOnce(): Promise<number> {
   const payload = await fetchOrefPayload();
   const rawAlerts = toRawAlerts(payload);
@@ -188,7 +206,7 @@ export async function pollOrefOnce(): Promise<number> {
       continue;
     }
 
-    const existingAlert = await AlertModel.findOne({ alertId: normalized.alertId }).exec();
+    const existingAlert = await findRecentMatchingAlert(normalized);
 
     if (existingAlert) {
       // Merge any new areas into the existing alert
@@ -203,25 +221,30 @@ export async function pollOrefOnce(): Promise<number> {
       // Update the stored alert with the merged areas
       const mergedAreas = [...existingAlert.areas, ...newAreas];
       await AlertModel.updateOne(
-        { alertId: normalized.alertId },
+        { _id: existingAlert._id },
         { $set: { areas: mergedAreas } }
       );
 
-      logInfo("oref_alert_areas_updated", {
-        alertId: normalized.alertId,
+      logInfo("oref_alert_areas_merged", {
+        existingAlertId: existingAlert.alertId,
+        incomingAlertId: normalized.alertId,
         previousAreasCount: existingAlert.areas.length,
         newAreasCount: newAreas.length,
         totalAreasCount: mergedAreas.length
       });
 
-      // Only fanout to devices subscribed to the newly-added areas
-      const updatedNormalized = { ...normalized, areas: mergedAreas };
-      const fanoutResult = await fanoutAlertToSubscribedDevices(updatedNormalized, {
+      // Fanout using the ORIGINAL alertId (so delivery log dedup works across waves)
+      const mergedNormalized = {
+        ...normalized,
+        alertId: existingAlert.alertId,
+        areas: mergedAreas
+      };
+      const fanoutResult = await fanoutAlertToSubscribedDevices(mergedNormalized, {
         limitToAreas: newAreas
       });
       if (fanoutResult.matchedSubscriptions > 0) {
         logInfo("alert_fanout_completed", {
-          alertId: normalized.alertId,
+          alertId: existingAlert.alertId,
           matchedSubscriptions: fanoutResult.matchedSubscriptions,
           sent: fanoutResult.sent,
           failed: fanoutResult.failed,
