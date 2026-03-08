@@ -90,6 +90,13 @@ class _AlertsScreenState extends State<AlertsScreen> {
       },
     );
 
+    // All-clear events don't need the full-screen popup — just refresh the list
+    if (event.type == 'all_clear') {
+      AppLogger.info('AlertsScreen', 'All-clear event, refreshing alerts list');
+      unawaited(_fetchAlerts());
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => NotificationPopupScreen(
