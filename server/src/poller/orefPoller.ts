@@ -73,7 +73,6 @@ function deriveAlertId(raw: RawOrefAlert, normalized: Omit<NormalizedAlert, "ale
     normalized.title,
     normalized.category,
     normalized.desc,
-    normalized.areas.join(","),
     sourceTime
   ]);
   return `hash-${hash}`;
@@ -181,6 +180,7 @@ export async function pollOrefOnce(): Promise<number> {
   }
 
   let insertedCount = 0;
+  let updatedCount = 0;
   let duplicateCount = 0;
   for (const rawAlert of rawAlerts) {
     const normalized = normalizeAlert(rawAlert);
@@ -188,9 +188,48 @@ export async function pollOrefOnce(): Promise<number> {
       continue;
     }
 
-    const existing = await AlertModel.exists({ alertId: normalized.alertId });
-    if (existing) {
-      duplicateCount += 1;
+    const existingAlert = await AlertModel.findOne({ alertId: normalized.alertId }).exec();
+
+    if (existingAlert) {
+      // Merge any new areas into the existing alert
+      const existingAreasSet = new Set(existingAlert.areas);
+      const newAreas = normalized.areas.filter((area) => !existingAreasSet.has(area));
+
+      if (newAreas.length === 0) {
+        duplicateCount += 1;
+        continue;
+      }
+
+      // Update the stored alert with the merged areas
+      const mergedAreas = [...existingAlert.areas, ...newAreas];
+      await AlertModel.updateOne(
+        { alertId: normalized.alertId },
+        { $set: { areas: mergedAreas } }
+      );
+
+      logInfo("oref_alert_areas_updated", {
+        alertId: normalized.alertId,
+        previousAreasCount: existingAlert.areas.length,
+        newAreasCount: newAreas.length,
+        totalAreasCount: mergedAreas.length
+      });
+
+      // Only fanout to devices subscribed to the newly-added areas
+      const updatedNormalized = { ...normalized, areas: mergedAreas };
+      const fanoutResult = await fanoutAlertToSubscribedDevices(updatedNormalized, {
+        limitToAreas: newAreas
+      });
+      if (fanoutResult.matchedSubscriptions > 0) {
+        logInfo("alert_fanout_completed", {
+          alertId: normalized.alertId,
+          matchedSubscriptions: fanoutResult.matchedSubscriptions,
+          sent: fanoutResult.sent,
+          failed: fanoutResult.failed,
+          newAreas
+        });
+      }
+
+      updatedCount += 1;
       continue;
     }
 
@@ -235,6 +274,7 @@ export async function pollOrefOnce(): Promise<number> {
   logInfo("oref_poll_processed", {
     rawCount: rawAlerts.length,
     insertedCount,
+    updatedCount,
     duplicateCount
   });
 
