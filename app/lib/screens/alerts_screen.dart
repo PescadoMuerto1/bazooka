@@ -368,9 +368,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final alert = _alerts[index];
-          final hasTimestamp = alert.sourceTimestamp != null;
-          final timeStr = hasTimestamp
-              ? '${alert.sourceTimestamp!.hour}:${alert.sourceTimestamp!.minute.toString().padLeft(2, '0')}'
+          final timestamp = alert.sourceTimestamp ?? alert.ingestedAt;
+          final timeStr = timestamp != null
+              ? '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}'
               : 'Recently';
 
           return Container(
