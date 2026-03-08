@@ -50,9 +50,13 @@ class PushAlertEvent {
         .map((value) => value.trim())
         .where((value) => value.isNotEmpty)
         .toList(growable: false);
-    final matchedCityKey = message.data['matchedCityKey']?.toString().trim() ?? '';
+    final matchedCityKey =
+        message.data['matchedCityKey']?.toString().trim() ?? '';
     final type = message.data['type']?.toString().trim() ?? 'update';
-    final areasCount = _parseAreasCount(message.data['areasCount'], areas.length);
+    final areasCount = _parseAreasCount(
+      message.data['areasCount'],
+      areas.length,
+    );
 
     return PushAlertEvent(
       title:
@@ -151,6 +155,10 @@ class PushService implements PushSyncService {
   static const _alertsChannelDescription =
       'High-priority Bazooka safety alerts';
   static const _alertsSoundResource = 'alert_song';
+  static const _allClearChannelId = 'bazooka_all_clear_channel';
+  static const _allClearChannelName = 'All Clear';
+  static const _allClearChannelDescription =
+      'Notifications when it is safe to leave the shelter';
   static PushAlertEvent? _pendingLaunchAlertEvent;
 
   final FirebaseMessaging _messaging;
@@ -347,14 +355,22 @@ class PushService implements PushSyncService {
     AppLogger.info(
       'PushService',
       'Showing foreground notification',
-      <String, Object?>{'title': event.title, 'areasCount': event.areasCount, 'type': event.type},
+      <String, Object?>{
+        'title': event.title,
+        'areasCount': event.areasCount,
+        'type': event.type,
+      },
     );
+
+    final details = event.type == 'all_clear'
+        ? _allClearNotificationDetails()
+        : _alertNotificationDetails();
 
     await _localNotificationsPlugin.show(
       event.hashCode,
       event.title,
       event.body,
-      _alertNotificationDetails(),
+      details,
       payload: jsonEncode(event.toJson()),
     );
   }
@@ -385,7 +401,7 @@ class PushService implements PushSyncService {
   static Future<void> _createAlertsChannel(
     FlutterLocalNotificationsPlugin plugin,
   ) async {
-    const channel = AndroidNotificationChannel(
+    const alertChannel = AndroidNotificationChannel(
       _alertsChannelId,
       _alertsChannelName,
       description: _alertsChannelDescription,
@@ -394,12 +410,21 @@ class PushService implements PushSyncService {
       sound: RawResourceAndroidNotificationSound(_alertsSoundResource),
     );
 
+    const allClearChannel = AndroidNotificationChannel(
+      _allClearChannelId,
+      _allClearChannelName,
+      description: _allClearChannelDescription,
+      importance: Importance.defaultImportance,
+      playSound: true,
+    );
+
     final androidPlugin = plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >();
-    await androidPlugin?.createNotificationChannel(channel);
-    AppLogger.info('PushService', 'Android alerts channel ensured');
+    await androidPlugin?.createNotificationChannel(alertChannel);
+    await androidPlugin?.createNotificationChannel(allClearChannel);
+    AppLogger.info('PushService', 'Android notification channels ensured');
   }
 
   static NotificationDetails _alertNotificationDetails() {
@@ -415,6 +440,20 @@ class PushService implements PushSyncService {
         audioAttributesUsage: AudioAttributesUsage.alarm,
         fullScreenIntent: true,
         category: AndroidNotificationCategory.call,
+        visibility: NotificationVisibility.public,
+      ),
+    );
+  }
+
+  static NotificationDetails _allClearNotificationDetails() {
+    return const NotificationDetails(
+      android: AndroidNotificationDetails(
+        _allClearChannelId,
+        _allClearChannelName,
+        channelDescription: _allClearChannelDescription,
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        playSound: true,
         visibility: NotificationVisibility.public,
       ),
     );
@@ -444,11 +483,14 @@ class PushService implements PushSyncService {
     await _createAlertsChannel(plugin);
 
     final event = PushAlertEvent.fromRemoteMessage(message);
+    final details = event.type == 'all_clear'
+        ? _allClearNotificationDetails()
+        : _alertNotificationDetails();
     await plugin.show(
       event.hashCode,
       event.title,
       event.body,
-      _alertNotificationDetails(),
+      details,
       payload: jsonEncode(event.toJson()),
     );
     AppLogger.info('PushService', 'Background notification shown');
