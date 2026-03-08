@@ -160,9 +160,11 @@ async function createDeliveryLog(input: {
 }
 
 export async function fanoutAlertToSubscribedDevices(
-  alert: NormalizedAlert
+  alert: NormalizedAlert,
+  options?: { limitToAreas?: string[] }
 ): Promise<{ matchedSubscriptions: number; sent: number; failed: number }> {
-  const candidateCityKeys = mapAlertAreasToCityKeys(alert.areas);
+  const areasForMatching = options?.limitToAreas ?? alert.areas;
+  const candidateCityKeys = mapAlertAreasToCityKeys(areasForMatching);
   if (candidateCityKeys.length === 0) {
     logInfo("fanout_skipped_no_candidate_city_keys", { alertId: alert.alertId });
     return { matchedSubscriptions: 0, sent: 0, failed: 0 };
