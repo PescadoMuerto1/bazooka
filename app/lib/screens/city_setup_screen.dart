@@ -42,6 +42,15 @@ class CitySetupScreen extends StatefulWidget {
 }
 
 class _CitySetupScreenState extends State<CitySetupScreen> {
+  static const Color _pageBackground = Color(0xFFF3F6FB);
+  static const Color _cardBackground = Colors.white;
+  static const Color _accentColor = Color(0xFF1E63B5);
+  static const Color _accentSoftBlue = Color(0xFFEAF2FF);
+  static const Color _accentYellow = Color(0xFFF4C542);
+  static const Color _accentYellowSoft = Color(0xFFFFF6DB);
+  static const Color _primaryTextColor = Color(0xFF0F172A);
+  static const Color _secondaryTextColor = Color(0xFF475569);
+
   late final List<CityOption> _allCityOptions;
   final TextEditingController _searchController = TextEditingController();
   String? _selectedCityKey;
@@ -191,193 +200,213 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
   Widget build(BuildContext context) {
     final filteredCityOptions = _filteredCityOptions;
     return Scaffold(
-      backgroundColor: const Color(0xFF1976D2), // Deep App Blue
+      backgroundColor: _pageBackground,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        backgroundColor: _pageBackground,
+        elevation: 0,
+        title: const Text(
+          'Choose City',
+          style: TextStyle(
+            color: _primaryTextColor,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.2,
+          ),
+        ),
+      ),
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            // Header Content
-            Padding(
-              padding: const EdgeInsets.only(
-                top: 40,
-                left: 24,
-                right: 24,
-                bottom: 24,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Where are you\nlocated?',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      height: 1.1,
-                      letterSpacing: -0.5,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: <Color>[Color(0xFFE1ECFF), Color(0xFFD2E3FF)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const <BoxShadow>[
+                    BoxShadow(
+                      color: Color(0x140F172A),
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: TextField(
+                    key: const Key('citySearchField'),
+                    controller: _searchController,
+                    textInputAction: TextInputAction.search,
+                    style: const TextStyle(
+                      color: _primaryTextColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Search city (עברית / English)',
+                      hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: _accentYellow,
+                      ),
+                      prefixIconConstraints: BoxConstraints(
+                        minWidth: 38,
+                        minHeight: 38,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  // Search field
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: const <BoxShadow>[
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 10,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      key: const Key('citySearchField'),
-                      controller: _searchController,
-                      textInputAction: TextInputAction.search,
-                      decoration: const InputDecoration(
-                        hintText: 'Search city',
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        prefixIcon: Icon(Icons.search, color: Colors.black54),
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-            // Cities List
-            Expanded(
-              child: filteredCityOptions.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No cities found',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 8,
-                      ),
-                      itemCount: filteredCityOptions.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 16),
-                      itemBuilder: (context, index) {
-                        final city = filteredCityOptions[index];
-                        final isSelected = city.key == _selectedCityKey;
-                        final primaryName = city.hebrewName;
-                        final secondaryName = city.englishName;
-                        final hasSecondLine =
-                            secondaryName.isNotEmpty &&
-                            secondaryName != primaryName;
-
-                        return InkWell(
-                          key: Key('cityOption_${city.key}'),
-                          onTap: () {
-                            setState(() {
-                              _selectedCityKey = city.key;
-                            });
-                            _saveSelection(); // Auto-save on tap for smoother UX
-                          },
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(0xFFF0F7FF)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: isSelected
-                                  ? Border.all(
-                                      color: const Color(0xFFFFC107),
-                                      width: 2,
-                                    )
-                                  : null,
-                              boxShadow: const <BoxShadow>[
-                                BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 8,
-                                  offset: Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        primaryName,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                      if (hasSecondLine) ...[
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.location_on,
-                                              size: 12,
-                                              color: Colors.black54,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Expanded(
-                                              child: Text(
-                                                secondaryName,
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.black54,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                                if (isSelected ||
-                                    _isSaving && city.key == _selectedCityKey)
-                                  _isSaving
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Icon(
-                                          Icons.check_circle,
-                                          color: Color(0xFF4CAF50),
-                                        ),
-                                if (!isSelected && !_isSaving)
-                                  const Icon(
-                                    Icons.chevron_right,
-                                    color: Colors.black26,
-                                  ),
-                              ],
-                            ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: filteredCityOptions.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No cities found',
+                          style: TextStyle(
+                            color: _secondaryTextColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
-                        );
-                      },
-                    ),
-            ),
-          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.only(top: 2, bottom: 18),
+                        itemCount: filteredCityOptions.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final city = filteredCityOptions[index];
+                          final isSelected = city.key == _selectedCityKey;
+                          final primaryName = city.hebrewName;
+                          final secondaryName = city.englishName;
+                          final hasSecondLine =
+                              secondaryName.isNotEmpty &&
+                              secondaryName != primaryName;
+
+                          return InkWell(
+                            key: Key('cityOption_${city.key}'),
+                            onTap: () {
+                              setState(() {
+                                _selectedCityKey = city.key;
+                              });
+                              _saveSelection(); // Auto-save on tap for smoother UX
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.all(18),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? _accentYellowSoft
+                                    : _cardBackground,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? _accentColor
+                                      : const Color(0xFFDCE6F2),
+                                  width: isSelected ? 1.8 : 1,
+                                ),
+                                boxShadow: const <BoxShadow>[
+                                  BoxShadow(
+                                    color: Color(0x120F172A),
+                                    blurRadius: 10,
+                                    offset: Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? const Color(0xFFFFECB3)
+                                          : _accentSoftBlue,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Icon(
+                                      Icons.location_on,
+                                      size: 18,
+                                      color: isSelected
+                                          ? const Color(0xFF996A00)
+                                          : _accentColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          primaryName,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w800,
+                                            color: _primaryTextColor,
+                                          ),
+                                        ),
+                                        if (hasSecondLine) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            secondaryName,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: _secondaryTextColor,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  if (isSelected ||
+                                      _isSaving && city.key == _selectedCityKey)
+                                    _isSaving
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.check_circle,
+                                            color: _accentColor,
+                                          ),
+                                  if (!isSelected && !_isSaving)
+                                    const Icon(
+                                      Icons.chevron_right,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
