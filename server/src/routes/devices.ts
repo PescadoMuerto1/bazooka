@@ -1,5 +1,6 @@
 import { type NextFunction, type Request, type Response, Router } from "express";
 import { config } from "../config.js";
+import { mapAlertAreasToCityKeys } from "../data/cities.js";
 import { logError, logInfo, logWarn } from "../logger.js";
 import { DeviceModel } from "../models/device.js";
 import { SubscriptionModel } from "../models/subscription.js";
@@ -18,6 +19,39 @@ function getRequiredString(value: unknown, fieldName: string, maxLength: number)
   }
 
   return trimmedValue;
+}
+
+function getOptionalString(value: unknown, fieldName: string, maxLength: number): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new Error(`"${fieldName}" must be a string`);
+  }
+
+  const trimmedValue = value.trim();
+  if (trimmedValue.length === 0) {
+    return null;
+  }
+
+  if (trimmedValue.length > maxLength) {
+    throw new Error(`"${fieldName}" must be at most ${maxLength} chars`);
+  }
+
+  return trimmedValue;
+}
+
+function resolveCityKeyForStorage(rawCityKey: string): string {
+  const mappedCityKeys = mapAlertAreasToCityKeys([rawCityKey]).filter(
+    (candidate) => candidate !== rawCityKey
+  );
+
+  if (mappedCityKeys.length === 0) {
+    return rawCityKey;
+  }
+
+  return mappedCityKeys[0];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -115,13 +149,17 @@ devicesRouter.put("/subscription", async (req, res) => {
   try {
     enforceJsonBody(req);
     const deviceId = getRequiredString(req.body.deviceId, "deviceId", 128);
-    const cityKey = getRequiredString(req.body.cityKey, "cityKey", 120);
-    const cityDisplay = getRequiredString(req.body.cityDisplay, "cityDisplay", 120);
-    const lang = getRequiredString(req.body.lang, "lang", 8);
+    const rawCityKey = getRequiredString(req.body.cityKey, "cityKey", 120);
+    const cityKey = resolveCityKeyForStorage(rawCityKey);
+    const providedCityDisplay = getOptionalString(req.body.cityDisplay, "cityDisplay", 120);
+    const cityDisplay = providedCityDisplay ?? cityKey;
+    const lang = getRequiredString(req.body.lang, "lang", 8).toLowerCase();
 
     logInfo("subscription_upsert_requested", {
       deviceId,
+      rawCityKey,
       cityKey,
+      cityDisplay,
       lang
     });
 
@@ -129,6 +167,7 @@ devicesRouter.put("/subscription", async (req, res) => {
       logWarn("subscription_upsert_bad_request", {
         reason: "\"lang\" must be one of he/en/ru/ar",
         deviceId,
+        rawCityKey,
         cityKey,
         lang
       });
@@ -137,7 +176,11 @@ devicesRouter.put("/subscription", async (req, res) => {
 
     const deviceExists = await DeviceModel.exists({ deviceId });
     if (!deviceExists) {
-      logWarn("subscription_upsert_device_missing", { deviceId, cityKey });
+      logWarn("subscription_upsert_device_missing", {
+        deviceId,
+        rawCityKey,
+        cityKey
+      });
       return res.status(404).json({ ok: false, error: "Device not registered" });
     }
 
