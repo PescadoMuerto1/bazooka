@@ -145,7 +145,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   Text(
-                    'Subscription',
+                    'City',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
