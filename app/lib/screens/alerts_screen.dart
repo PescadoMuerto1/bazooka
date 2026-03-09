@@ -90,10 +90,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
       },
     );
 
+    _triggerPushRefreshSequence(event.type);
+
     // All-clear events don't need the full-screen popup — just refresh the list
     if (event.type == 'all_clear') {
-      AppLogger.info('AlertsScreen', 'All-clear event, refreshing alerts list');
-      unawaited(_fetchAlerts());
+      AppLogger.info('AlertsScreen', 'All-clear event, skipping popup');
       return;
     }
 
@@ -109,6 +110,24 @@ class _AlertsScreenState extends State<AlertsScreen> {
         ),
       ),
     );
+  }
+
+  void _triggerPushRefreshSequence(String eventType) {
+    unawaited(_fetchAlerts());
+    unawaited(_refreshAlertsAfterPush(eventType));
+  }
+
+  Future<void> _refreshAlertsAfterPush(String eventType) async {
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (!mounted) {
+      return;
+    }
+    AppLogger.info(
+      'AlertsScreen',
+      'Running delayed alerts refresh after push event',
+      <String, Object?>{'type': eventType},
+    );
+    await _fetchAlerts();
   }
 
   Future<void> _fetchAlerts() async {
@@ -175,28 +194,23 @@ class _AlertsScreenState extends State<AlertsScreen> {
       latestAlert?.sourceTimestamp ?? latestAlert?.ingestedAt,
     );
 
-    String situationBadge = 'LIVE';
     String situationHeadline = 'Checking Alerts...';
     String situationSubtitle = 'Pulling latest updates from Oref';
     Color situationColor = const Color(0xFF90CAF9);
 
     if (_errorMessage != null) {
-      situationBadge = 'ISSUE';
       situationHeadline = 'Update Unavailable';
       situationSubtitle = 'Could not fetch latest alerts. Pull to refresh.';
       situationColor = const Color(0xFFFFB74D);
     } else if (!_isLoading && latestAlert == null) {
-      situationBadge = 'QUIET';
       situationHeadline = 'No Active Alerts';
       situationSubtitle = 'Monitoring Oref continuously';
       situationColor = const Color(0xFF81C784);
     } else if (latestAlert != null && _isAllClearAlert(latestAlert)) {
-      situationBadge = 'ALL CLEAR';
       situationHeadline = 'All Clear';
       situationSubtitle = 'Latest event ended at $latestTimeText';
       situationColor = const Color(0xFF81C784);
     } else if (latestAlert != null) {
-      situationBadge = 'ALERT';
       situationHeadline = 'Take Shelter Now';
       situationSubtitle = latestAlert.desc.isNotEmpty
           ? latestAlert.desc
