@@ -32,7 +32,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   late String _selectedLanguageCode;
   bool _isSavingLanguage = false;
-  bool _isEnablingAutoOpen = false;
 
   @override
   void initState() {
@@ -106,58 +105,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         builder: (context) => CitySetupScreen(settings: widget.settings),
       ),
     );
-  }
-
-  Future<void> _enableAutoOpenAlerts() async {
-    if (_isEnablingAutoOpen) {
-      AppLogger.warn(
-        'SettingsScreen',
-        'Enable auto-open skipped: already in progress',
-      );
-      return;
-    }
-
-    setState(() {
-      _isEnablingAutoOpen = true;
-    });
-
-    try {
-      AppLogger.info('SettingsScreen', 'Requesting auto-open permission');
-      final granted = await widget.pushService
-          .requestFullScreenIntentPermission();
-      if (!mounted) {
-        return;
-      }
-      final text = granted
-          ? 'Auto-open permission granted. Lock/turn off screen to test full-screen launch.'
-          : 'Auto-open permission not granted yet. Enable Full-screen notifications in Android settings.';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-      AppLogger.info(
-        'SettingsScreen',
-        'Auto-open permission result',
-        <String, Object?>{'granted': granted},
-      );
-    } catch (error) {
-      AppLogger.error(
-        'SettingsScreen',
-        'Request auto-open permission failed',
-        error: error,
-      );
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not request auto-open permission: $error'),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isEnablingAutoOpen = false;
-        });
-      }
-    }
   }
 
   @override
@@ -332,63 +279,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // Auto-open Card
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Text(
-                    'Auto-open Alerts (Android)',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blueGrey[800],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Allows full-screen notification launch when the screen is locked.',
-                    style: TextStyle(color: Colors.black54, fontSize: 13),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    key: const Key('enableFullScreenAlertsButton'),
-                    onPressed: _isEnablingAutoOpen
-                        ? null
-                        : _enableAutoOpenAlerts,
-                    icon: const Icon(Icons.screen_lock_portrait_outlined),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1976D2).withOpacity(0.1),
-                      foregroundColor: const Color(0xFF1976D2),
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    label: Text(
-                      _isEnablingAutoOpen
-                          ? 'Opening settings...'
-                          : 'Enable auto-open',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
