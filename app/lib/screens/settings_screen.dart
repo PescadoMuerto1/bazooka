@@ -115,8 +115,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hasUnsavedLanguage =
-        _selectedLanguageCode != widget.settings.languageCode;
     final cityDisplay =
         widget.settings.cityDisplay ?? widget.settings.cityKey ?? 'Unknown';
 
@@ -310,42 +308,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         )
                         .toList(growable: false),
-                    onChanged: (value) {
-                      if (value == null) {
-                        return;
-                      }
-                      setState(() {
-                        _selectedLanguageCode = value;
-                      });
-                    },
+                    onChanged: _isSavingLanguage
+                        ? null
+                        : (value) {
+                            if (value == null ||
+                                value == _selectedLanguageCode) {
+                              return;
+                            }
+                            setState(() {
+                              _selectedLanguageCode = value;
+                            });
+                            _saveLanguage();
+                          },
                   ),
-                  const SizedBox(height: 14),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    child: hasUnsavedLanguage || _isSavingLanguage
-                        ? ElevatedButton(
-                            key: const Key('saveLanguageButton'),
-                            onPressed: _isSavingLanguage ? null : _saveLanguage,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _accentColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: Text(
-                              _isSavingLanguage ? 'Saving...' : 'Save changes',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
+                  if (_isSavingLanguage) ...[
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Saving language...',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _secondaryTextColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
