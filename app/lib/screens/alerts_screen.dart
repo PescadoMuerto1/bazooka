@@ -48,7 +48,14 @@ class _AlertsScreenState extends State<AlertsScreen> {
       return;
     }
 
-    AppLogger.info('AlertsScreen', 'Returned from settings; refreshing alerts');
+    AppLogger.info(
+      'AlertsScreen',
+      'Returned from settings; syncing backend and refreshing alerts',
+    );
+    await widget.pushService.initializeAndSync(
+      settings: widget.settings,
+      apiClient: widget.apiClient,
+    );
     await _fetchAlerts();
   }
 
