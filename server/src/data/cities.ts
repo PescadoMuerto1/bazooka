@@ -1,15 +1,56 @@
-const CITY_ALIASES: Record<string, string[]> = {
-  "תל אביב": ["תל אביב", "תל אביב יפו", "תל אביב-יפו", "tel aviv", "tel aviv yafo", "tel-aviv"],
-  ירושלים: ["ירושלים", "jerusalem"],
-  חיפה: ["חיפה", "haifa"],
-  אשקלון: ["אשקלון", "ashkelon"],
-  אשדוד: ["אשדוד", "ashdod"],
-  בארשבע: ["באר שבע", "באר-שבע", "be'er sheva", "beer sheva", "beersheba"],
-  רמתגן: ["רמת גן", "רמת-גן", "ramat gan"],
-  פתחתקווה: ["פתח תקווה", "פתח-תקווה", "petah tikva", "petach tikva"],
-  נתניה: ["נתניה", "netanya"],
-  "בית שמש": ["בית שמש", "beit shemesh"]
+type CityAliasGroup = {
+  keys: string[];
+  aliases: string[];
 };
+
+const CITY_ALIAS_GROUPS: CityAliasGroup[] = [
+  {
+    keys: ["תל אביב", "תל אביב - יפו"],
+    aliases: [
+      "תל אביב יפו",
+      "תל אביב-יפו",
+      "tel aviv",
+      "tel aviv yafo",
+      "tel-aviv"
+    ]
+  },
+  {
+    keys: ["ירושלים"],
+    aliases: ["jerusalem"]
+  },
+  {
+    keys: ["חיפה"],
+    aliases: ["haifa"]
+  },
+  {
+    keys: ["אשקלון"],
+    aliases: ["ashkelon"]
+  },
+  {
+    keys: ["אשדוד"],
+    aliases: ["ashdod"]
+  },
+  {
+    keys: ["בארשבע", "באר שבע"],
+    aliases: ["באר-שבע", "be'er sheva", "beer sheva", "beersheba"]
+  },
+  {
+    keys: ["רמתגן", "רמת גן"],
+    aliases: ["רמת-גן", "ramat gan"]
+  },
+  {
+    keys: ["פתחתקווה", "פתח תקווה"],
+    aliases: ["פתח-תקווה", "petah tikva", "petach tikva"]
+  },
+  {
+    keys: ["נתניה"],
+    aliases: ["netanya"]
+  },
+  {
+    keys: ["בית שמש"],
+    aliases: ["beit shemesh"]
+  }
+];
 
 function normalizeText(value: string): string {
   return value
@@ -20,34 +61,60 @@ function normalizeText(value: string): string {
     .replace(/\s+/g, " ");
 }
 
-const aliasToCanonical = new Map<string, string>();
-for (const [canonical, aliases] of Object.entries(CITY_ALIASES)) {
-  const normalizedCanonical = normalizeText(canonical);
-  aliasToCanonical.set(normalizedCanonical, canonical);
+const aliasToCityKeys = new Map<string, Set<string>>();
+for (const group of CITY_ALIAS_GROUPS) {
+  const groupKeys = Array.from(
+    new Set(
+      group.keys.map((key) => key.trim()).filter((key) => key.length > 0)
+    )
+  );
+  if (groupKeys.length === 0) {
+    continue;
+  }
 
-  for (const alias of aliases) {
-    aliasToCanonical.set(normalizeText(alias), canonical);
+  const normalizedLookupTerms = Array.from(
+    new Set(
+      [...groupKeys, ...group.aliases]
+        .map(normalizeText)
+        .filter((value) => value.length > 0)
+    )
+  );
+
+  for (const term of normalizedLookupTerms) {
+    const existing = aliasToCityKeys.get(term);
+    if (existing) {
+      for (const key of groupKeys) {
+        existing.add(key);
+      }
+      continue;
+    }
+
+    aliasToCityKeys.set(term, new Set(groupKeys));
   }
 }
 
-function lookupCanonicalCity(rawArea: string): string | null {
+function lookupMappedCityKeys(rawArea: string): string[] {
   const normalizedArea = normalizeText(rawArea);
   if (!normalizedArea) {
-    return null;
+    return [];
   }
 
-  const exact = aliasToCanonical.get(normalizedArea);
+  const exact = aliasToCityKeys.get(normalizedArea);
   if (exact) {
-    return exact;
+    return Array.from(exact);
   }
 
-  for (const [alias, canonical] of aliasToCanonical.entries()) {
-    if (normalizedArea.includes(alias) || alias.includes(normalizedArea)) {
-      return canonical;
+  const matches = new Set<string>();
+  for (const [alias, keys] of aliasToCityKeys.entries()) {
+    if (!normalizedArea.includes(alias) && !alias.includes(normalizedArea)) {
+      continue;
+    }
+    for (const key of keys) {
+      matches.add(key);
     }
   }
 
-  return null;
+  return Array.from(matches);
 }
 
 export function mapAlertAreasToCityKeys(areas: string[]): string[] {
@@ -60,9 +127,9 @@ export function mapAlertAreasToCityKeys(areas: string[]): string[] {
     }
 
     unique.add(trimmedArea);
-    const canonical = lookupCanonicalCity(trimmedArea);
-    if (canonical) {
-      unique.add(canonical);
+    const mappedKeys = lookupMappedCityKeys(trimmedArea);
+    for (const key of mappedKeys) {
+      unique.add(key);
     }
   }
 
