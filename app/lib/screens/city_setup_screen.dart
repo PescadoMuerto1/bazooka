@@ -217,17 +217,6 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
                         icon: const Icon(Icons.arrow_back, color: Colors.white),
                       ),
                     ),
-                  Center(
-                    child: Opacity(
-                      opacity: 0.5,
-                      child: Image.asset(
-                        'assets/missile.png',
-                        width: 48,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   const Text(
                     'Where are you\nlocated?',
                     style: TextStyle(
@@ -333,22 +322,6 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
                             ),
                             child: Row(
                               children: [
-                                Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: const Color(0xFFF5F7FA),
-                                    border: Border.all(color: Colors.black12),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: const Icon(
-                                    Icons.flag,
-                                    size: 18,
-                                    color: Color(0xFF1976D2),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
