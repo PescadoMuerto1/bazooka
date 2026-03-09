@@ -91,7 +91,7 @@ class _NotificationPopupScreenState extends State<NotificationPopupScreen>
         child: Stack(
           children: <Widget>[
             Positioned(
-              top: 40,
+              top: 30,
               left: 0,
               right: 0,
               bottom: 250,
