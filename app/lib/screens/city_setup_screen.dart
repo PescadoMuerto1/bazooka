@@ -191,6 +191,16 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
     });
     AppLogger.info('CitySetupScreen', 'City selection saved');
 
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      AppLogger.info(
+        'CitySetupScreen',
+        'City selected: returning to main screen',
+      );
+      navigator.popUntil((route) => route.isFirst);
+      return;
+    }
+
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('City saved')));
