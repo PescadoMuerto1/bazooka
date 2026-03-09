@@ -170,6 +170,43 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
     final now = DateTime.now();
     final dateDisplay = '${now.day}/${now.month}/${now.year}';
+    final latestAlert = _alerts.isNotEmpty ? _alerts.first : null;
+    final latestTimeText = _formatTime(
+      latestAlert?.sourceTimestamp ?? latestAlert?.ingestedAt,
+    );
+
+    String situationBadge = 'LIVE';
+    String situationHeadline = 'Checking Alerts...';
+    String situationSubtitle = 'Pulling latest updates from Oref';
+    Color situationColor = const Color(0xFF90CAF9);
+
+    if (_errorMessage != null) {
+      situationBadge = 'ISSUE';
+      situationHeadline = 'Update Unavailable';
+      situationSubtitle = 'Could not fetch latest alerts. Pull to refresh.';
+      situationColor = const Color(0xFFFFB74D);
+    } else if (!_isLoading && latestAlert == null) {
+      situationBadge = 'QUIET';
+      situationHeadline = 'No Active Alerts';
+      situationSubtitle = 'Monitoring Oref continuously';
+      situationColor = const Color(0xFF81C784);
+    } else if (latestAlert != null && _isAllClearAlert(latestAlert)) {
+      situationBadge = 'ALL CLEAR';
+      situationHeadline = 'All Clear';
+      situationSubtitle = 'Latest event ended at $latestTimeText';
+      situationColor = const Color(0xFF81C784);
+    } else if (latestAlert != null) {
+      situationBadge = 'ALERT';
+      situationHeadline = 'Take Shelter Now';
+      situationSubtitle = latestAlert.desc.isNotEmpty
+          ? latestAlert.desc
+          : latestAlert.title;
+      situationColor = const Color(0xFFFF8A80);
+    }
+
+    final latestInfoText = latestAlert == null
+        ? 'No recent events yet'
+        : '${latestAlert.areas.length} area(s) • $latestTimeText';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -276,44 +313,63 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                 letterSpacing: 1.1,
                               ),
                             ),
-                            InkWell(
-                              key: const Key('refreshAlertsButton'),
-                              onTap: _fetchAlerts,
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.15),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.refresh,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
+                            Text(
+                              'Updated $latestTimeText',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white70,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         Text(
-                          _alerts.isEmpty ? 'NORMAL' : 'ALERTS',
+                          situationHeadline,
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w900,
-                            color: _alerts.isEmpty
-                                ? const Color(0xFF4CAF50)
-                                : const Color(0xFFFF5252),
-                            letterSpacing: 1.5,
+                            color: situationColor,
+                            letterSpacing: 0.8,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
-                          _alerts.isEmpty
-                              ? 'System Monitoring'
-                              : 'Recent alarms detected',
+                          situationSubtitle,
                           style: const TextStyle(
                             fontSize: 14,
                             color: Colors.white70,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              const Icon(
+                                Icons.schedule,
+                                color: Colors.white70,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  latestInfoText,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -460,5 +516,18 @@ class _AlertsScreenState extends State<AlertsScreen> {
         },
       ),
     );
+  }
+
+  bool _isAllClearAlert(AlertDto alert) {
+    final title = alert.title;
+    return alert.category == '10' && title.contains('האירוע הסתיים');
+  }
+
+  String _formatTime(DateTime? timestamp) {
+    if (timestamp == null) {
+      return 'now';
+    }
+    final local = timestamp.toLocal();
+    return '${local.hour}:${local.minute.toString().padLeft(2, '0')}';
   }
 }
