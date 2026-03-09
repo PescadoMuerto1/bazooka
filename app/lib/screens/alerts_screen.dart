@@ -210,6 +210,12 @@ class _AlertsScreenState extends State<AlertsScreen> {
       situationHeadline = 'All Clear';
       situationSubtitle = 'Latest event ended at $latestTimeText';
       situationColor = const Color(0xFF81C784);
+    } else if (latestAlert != null && _isPreAlertAlert(latestAlert)) {
+      situationHeadline = 'Pre-Alert: Be Ready';
+      situationSubtitle = latestAlert.desc.isNotEmpty
+          ? latestAlert.desc
+          : latestAlert.title;
+      situationColor = const Color(0xFFFFD54F);
     } else if (latestAlert != null) {
       situationHeadline = 'Take Shelter Now';
       situationSubtitle = latestAlert.desc.isNotEmpty
@@ -535,6 +541,26 @@ class _AlertsScreenState extends State<AlertsScreen> {
   bool _isAllClearAlert(AlertDto alert) {
     final title = alert.title;
     return alert.category == '10' && title.contains('האירוע הסתיים');
+  }
+
+  bool _isPreAlertAlert(AlertDto alert) {
+    if (alert.category != '10') {
+      return false;
+    }
+
+    final title = alert.title.trim();
+    final description = alert.desc.trim();
+    final titleLower = title.toLowerCase();
+    final descriptionLower = description.toLowerCase();
+
+    return title.contains('בדקות הקרובות') ||
+        description.contains('בדקות הקרובות') ||
+        titleLower.contains('pre alert') ||
+        titleLower.contains('pre-alert') ||
+        descriptionLower.contains('pre alert') ||
+        descriptionLower.contains('pre-alert') ||
+        titleLower.contains('next few minutes') ||
+        descriptionLower.contains('next few minutes');
   }
 
   String _formatTime(DateTime? timestamp) {
