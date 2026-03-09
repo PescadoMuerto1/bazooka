@@ -32,7 +32,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   late String _selectedLanguageCode;
   bool _isSavingLanguage = false;
-  bool _isTestingNotification = false;
   bool _isEnablingAutoOpen = false;
 
   @override
@@ -92,57 +91,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         setState(() {
           _isSavingLanguage = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _runNotificationTest() async {
-    if (_isTestingNotification) {
-      AppLogger.warn(
-        'SettingsScreen',
-        'Notification test skipped: already running',
-      );
-      return;
-    }
-
-    setState(() {
-      _isTestingNotification = true;
-    });
-
-    try {
-      AppLogger.info('SettingsScreen', 'Running notification sync test');
-      await widget.pushService.initializeAndSync(
-        settings: widget.settings,
-        apiClient: widget.apiClient,
-      );
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Notification sync test sent. Check backend delivery logs.',
-          ),
-        ),
-      );
-      AppLogger.info('SettingsScreen', 'Notification sync test completed');
-    } catch (error) {
-      AppLogger.error(
-        'SettingsScreen',
-        'Notification sync test failed',
-        error: error,
-      );
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Notification test failed: $error')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isTestingNotification = false;
         });
       }
     }
@@ -377,63 +325,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     child: Text(
                       _isSavingLanguage ? 'SAVING...' : 'SAVE LANGUAGE',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Diagnostic Notification Card
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Text(
-                    'Diagnostics',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blueGrey[800],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Refreshes your FCM token sync to ensure you receive alerts.',
-                    style: TextStyle(color: Colors.black54, fontSize: 13),
-                  ),
-                  const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    key: const Key('testNotificationButton'),
-                    onPressed: _isTestingNotification
-                        ? null
-                        : _runNotificationTest,
-                    icon: const Icon(Icons.sync),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      side: const BorderSide(color: Color(0xFF1976D2)),
-                      foregroundColor: const Color(0xFF1976D2),
-                    ),
-                    label: Text(
-                      _isTestingNotification
-                          ? 'Running sync...'
-                          : 'Run token sync test',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
