@@ -87,6 +87,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
         'areasCount': event.areasCount,
         'matchedCityKey': event.matchedCityKey,
         'type': event.type,
+        'shouldDisplayPopup': event.shouldDisplayPopup,
       },
     );
 
@@ -95,6 +96,15 @@ class _AlertsScreenState extends State<AlertsScreen> {
     // All-clear events don't need the full-screen popup — just refresh the list
     if (event.type == 'all_clear') {
       AppLogger.info('AlertsScreen', 'All-clear event, skipping popup');
+      return;
+    }
+
+    if (!event.shouldDisplayPopup) {
+      AppLogger.info(
+        'AlertsScreen',
+        'Skipping popup for notification-open event',
+        <String, Object?>{'type': event.type},
+      );
       return;
     }
 
