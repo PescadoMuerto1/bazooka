@@ -19,6 +19,7 @@ class PushAlertEvent {
     required this.areasCount,
     required this.matchedCityKey,
     required this.areas,
+    required this.shouldDisplayPopup,
   });
 
   final String title;
@@ -27,6 +28,7 @@ class PushAlertEvent {
   final int areasCount;
   final String matchedCityKey;
   final List<String> areas;
+  final bool shouldDisplayPopup;
 
   static int _parseAreasCount(Object? rawValue, int fallback) {
     if (rawValue == null) {
@@ -41,7 +43,10 @@ class PushAlertEvent {
     return parsed;
   }
 
-  factory PushAlertEvent.fromRemoteMessage(RemoteMessage message) {
+  factory PushAlertEvent.fromRemoteMessage(
+    RemoteMessage message, {
+    bool shouldDisplayPopup = false,
+  }) {
     final notification = message.notification;
     final rawAreas = message.data['areas'] ?? '';
     final areas = rawAreas
@@ -68,20 +73,25 @@ class PushAlertEvent {
       areasCount: areasCount,
       matchedCityKey: matchedCityKey,
       areas: areas,
+      shouldDisplayPopup: shouldDisplayPopup,
     );
   }
 
-  factory PushAlertEvent.fromPayloadJson(String payload) {
+  factory PushAlertEvent.fromPayloadJson(
+    String payload, {
+    bool shouldDisplayPopup = false,
+  }) {
     try {
       final decoded = jsonDecode(payload);
       if (decoded is! Map<String, dynamic>) {
-        return const PushAlertEvent(
+        return PushAlertEvent(
           title: 'Bazooka Alert',
           body: '',
           type: 'update',
           areasCount: 0,
           matchedCityKey: '',
           areas: <String>[],
+          shouldDisplayPopup: shouldDisplayPopup,
         );
       }
 
@@ -104,15 +114,17 @@ class PushAlertEvent {
         areasCount: areasCount,
         matchedCityKey: matchedCityKey,
         areas: areas,
+        shouldDisplayPopup: shouldDisplayPopup,
       );
     } catch (_) {
-      return const PushAlertEvent(
+      return PushAlertEvent(
         title: 'Bazooka Alert',
         body: '',
         type: 'update',
         areasCount: 0,
         matchedCityKey: '',
         areas: <String>[],
+        shouldDisplayPopup: shouldDisplayPopup,
       );
     }
   }
@@ -300,7 +312,9 @@ class PushService implements PushSyncService {
           return;
         }
 
-        _alertEventsController.add(PushAlertEvent.fromPayloadJson(payload));
+        _alertEventsController.add(
+          PushAlertEvent.fromPayloadJson(payload, shouldDisplayPopup: false),
+        );
       },
     );
 
@@ -324,14 +338,18 @@ class PushService implements PushSyncService {
         <String, Object?>{'messageId': message.messageId ?? ''},
       );
       unawaited(_showForegroundNotification(message));
-      _alertEventsController.add(PushAlertEvent.fromRemoteMessage(message));
+      _alertEventsController.add(
+        PushAlertEvent.fromRemoteMessage(message, shouldDisplayPopup: true),
+      );
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
       AppLogger.info('PushService', 'Push opened app', <String, Object?>{
         'messageId': message.messageId ?? '',
       });
-      _alertEventsController.add(PushAlertEvent.fromRemoteMessage(message));
+      _alertEventsController.add(
+        PushAlertEvent.fromRemoteMessage(message, shouldDisplayPopup: false),
+      );
     });
 
     final initialMessage = await _messaging.getInitialMessage();
@@ -342,7 +360,10 @@ class PushService implements PushSyncService {
         <String, Object?>{'messageId': initialMessage.messageId ?? ''},
       );
       _alertEventsController.add(
-        PushAlertEvent.fromRemoteMessage(initialMessage),
+        PushAlertEvent.fromRemoteMessage(
+          initialMessage,
+          shouldDisplayPopup: false,
+        ),
       );
     }
 
@@ -394,7 +415,10 @@ class PushService implements PushSyncService {
       return;
     }
 
-    _pendingLaunchAlertEvent = PushAlertEvent.fromPayloadJson(payload);
+    _pendingLaunchAlertEvent = PushAlertEvent.fromPayloadJson(
+      payload,
+      shouldDisplayPopup: false,
+    );
     AppLogger.info('PushService', 'Captured launch payload from notification');
   }
 

@@ -23,6 +23,7 @@ class CityOption {
     required this.englishName,
     required this.hebrewSearchValue,
     required this.englishSearchValues,
+    required this.englishPhoneticSearchValues,
   });
 
   final String key;
@@ -30,6 +31,7 @@ class CityOption {
   final String englishName;
   final String hebrewSearchValue;
   final List<String> englishSearchValues;
+  final List<String> englishPhoneticSearchValues;
 }
 
 class CitySetupScreen extends StatefulWidget {
@@ -105,14 +107,17 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
 
     if (hasLatinInput && !hasHebrewInput) {
       final normalizedEnglishQuery = _normalizeEnglishForSearch(rawQuery);
-      if (normalizedEnglishQuery.isEmpty) {
+      final phoneticEnglishQuery = _normalizeEnglishPhoneticForSearch(rawQuery);
+      if (normalizedEnglishQuery.isEmpty && phoneticEnglishQuery.isEmpty) {
         return _allCityOptions;
       }
 
       return _allCityOptions
           .where(
-            (option) => option.englishSearchValues.any(
-              (searchValue) => searchValue.contains(normalizedEnglishQuery),
+            (option) => _matchesEnglishQuery(
+              option,
+              normalizedEnglishQuery,
+              phoneticEnglishQuery,
             ),
           )
           .toList(growable: false);
@@ -120,15 +125,19 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
 
     final normalizedHebrewQuery = _normalizeHebrewForSearch(rawQuery);
     final normalizedEnglishQuery = _normalizeEnglishForSearch(rawQuery);
+    final phoneticEnglishQuery = _normalizeEnglishPhoneticForSearch(rawQuery);
     return _allCityOptions
         .where((option) {
           final matchesHebrew =
               normalizedHebrewQuery.isNotEmpty &&
               option.hebrewSearchValue.contains(normalizedHebrewQuery);
           final matchesEnglish =
-              normalizedEnglishQuery.isNotEmpty &&
-              option.englishSearchValues.any(
-                (searchValue) => searchValue.contains(normalizedEnglishQuery),
+              (normalizedEnglishQuery.isNotEmpty ||
+                  phoneticEnglishQuery.isNotEmpty) &&
+              _matchesEnglishQuery(
+                option,
+                normalizedEnglishQuery,
+                phoneticEnglishQuery,
               );
           return matchesHebrew || matchesEnglish;
         })
@@ -425,9 +434,16 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
   CityOption _buildCityOption(String hebrewName) {
     final englishName = orefCityEnglishNames[hebrewName] ?? hebrewName;
     final aliases = _englishCityAliases[hebrewName] ?? const <String>[];
+    final rawEnglishValues = <String>{
+      englishName,
+      ...aliases,
+    }.where((value) => value.trim().isNotEmpty).toList(growable: false);
     final englishSearchValues = <String>{
-      _normalizeEnglishForSearch(englishName),
-      for (final alias in aliases) _normalizeEnglishForSearch(alias),
+      for (final value in rawEnglishValues) _normalizeEnglishForSearch(value),
+    }.where((value) => value.isNotEmpty).toList(growable: false);
+    final englishPhoneticSearchValues = <String>{
+      for (final value in rawEnglishValues)
+        _normalizeEnglishPhoneticForSearch(value),
     }.where((value) => value.isNotEmpty).toList(growable: false);
 
     return CityOption(
@@ -436,6 +452,28 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
       englishName: englishName,
       hebrewSearchValue: _normalizeHebrewForSearch(hebrewName),
       englishSearchValues: englishSearchValues,
+      englishPhoneticSearchValues: englishPhoneticSearchValues,
+    );
+  }
+
+  bool _matchesEnglishQuery(
+    CityOption option,
+    String normalizedEnglishQuery,
+    String phoneticEnglishQuery,
+  ) {
+    if (normalizedEnglishQuery.isNotEmpty &&
+        option.englishSearchValues.any(
+          (searchValue) => searchValue.contains(normalizedEnglishQuery),
+        )) {
+      return true;
+    }
+
+    if (phoneticEnglishQuery.isEmpty) {
+      return false;
+    }
+
+    return option.englishPhoneticSearchValues.any(
+      (searchValue) => searchValue.contains(phoneticEnglishQuery),
     );
   }
 
@@ -455,10 +493,22 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
         .replaceAll('ph', 'f')
         .replaceAll(RegExp(r'(kh|ch)'), 'h')
         .replaceAll(RegExp(r'(tz|ts)'), 'z')
+        .replaceAll(RegExp(r'[cq]'), 'k')
+        .replaceAll('w', 'b')
         .replaceAll('v', 'b')
-        .replaceAll(RegExp(r'[aeiouyw]'), '')
+        .replaceAll(RegExp(r'[aeiouy]'), '')
         .replaceAll(RegExp(r'[^a-z0-9 ]'), '')
         .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  String _normalizeEnglishPhoneticForSearch(String value) {
+    return _normalizeEnglishForSearch(value)
+        .replaceAll(RegExp(r'[sz]'), 's')
+        .replaceAll(RegExp(r'[gj]'), 'g')
+        .replaceAll(RegExp(r'[dt]'), 't')
+        .replaceAll('x', 'k')
+        .replaceAll(RegExp(r'(.)\1+'), r'$1')
         .trim();
   }
 }
