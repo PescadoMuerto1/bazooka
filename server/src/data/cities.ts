@@ -1,9 +1,11 @@
+import { cityEnglishNames } from "./cityNamePairs.js";
+
 type CityAliasGroup = {
   keys: string[];
   aliases: string[];
 };
 
-const CITY_ALIAS_GROUPS: CityAliasGroup[] = [
+const MANUAL_CITY_ALIAS_GROUPS: CityAliasGroup[] = [
   {
     keys: ["תל אביב", "תל אביב - יפו"],
     aliases: [
@@ -61,36 +63,83 @@ function normalizeText(value: string): string {
     .replace(/\s+/g, " ");
 }
 
+function toCollapsed(normalizedValue: string): string {
+  return normalizedValue.replace(/\s+/g, "");
+}
+
+function addAliasToMap(
+  aliasMap: Map<string, Set<string>>,
+  normalizedAlias: string,
+  cityKeys: readonly string[]
+): void {
+  if (!normalizedAlias) {
+    return;
+  }
+
+  const existing = aliasMap.get(normalizedAlias);
+  if (existing) {
+    for (const cityKey of cityKeys) {
+      existing.add(cityKey);
+    }
+    return;
+  }
+
+  aliasMap.set(normalizedAlias, new Set(cityKeys));
+}
+
+function addLookupTerm(
+  aliasMap: Map<string, Set<string>>,
+  rawLookupTerm: string,
+  cityKeys: readonly string[]
+): void {
+  const normalized = normalizeText(rawLookupTerm);
+  if (!normalized) {
+    return;
+  }
+
+  addAliasToMap(aliasMap, normalized, cityKeys);
+
+  const collapsed = toCollapsed(normalized);
+  if (collapsed !== normalized && collapsed.length >= 4) {
+    addAliasToMap(aliasMap, collapsed, cityKeys);
+  }
+}
+
+function uniqueTrimmed(values: readonly string[]): string[] {
+  return Array.from(new Set(values.map((value) => value.trim()).filter((value) => value.length > 0)));
+}
+
 const aliasToCityKeys = new Map<string, Set<string>>();
-for (const group of CITY_ALIAS_GROUPS) {
-  const groupKeys = Array.from(
-    new Set(
-      group.keys.map((key) => key.trim()).filter((key) => key.length > 0)
-    )
-  );
+
+for (const [hebrewName, englishName] of Object.entries(cityEnglishNames)) {
+  const groupKeys = [hebrewName];
+  addLookupTerm(aliasToCityKeys, hebrewName, groupKeys);
+  addLookupTerm(aliasToCityKeys, englishName, groupKeys);
+}
+
+for (const group of MANUAL_CITY_ALIAS_GROUPS) {
+  const groupKeys = uniqueTrimmed(group.keys);
   if (groupKeys.length === 0) {
     continue;
   }
 
-  const normalizedLookupTerms = Array.from(
-    new Set(
-      [...groupKeys, ...group.aliases]
-        .map(normalizeText)
-        .filter((value) => value.length > 0)
-    )
-  );
-
-  for (const term of normalizedLookupTerms) {
-    const existing = aliasToCityKeys.get(term);
-    if (existing) {
-      for (const key of groupKeys) {
-        existing.add(key);
-      }
-      continue;
-    }
-
-    aliasToCityKeys.set(term, new Set(groupKeys));
+  const lookupTerms = uniqueTrimmed([...groupKeys, ...group.aliases]);
+  for (const term of lookupTerms) {
+    addLookupTerm(aliasToCityKeys, term, groupKeys);
   }
+}
+
+const fuzzyAliasEntries = Array.from(aliasToCityKeys.entries()).filter(
+  ([alias]) => alias.length >= 4 && alias.includes(" ")
+);
+
+function containsAliasAsWholeTerm(normalizedValue: string, normalizedAlias: string): boolean {
+  return (
+    normalizedValue === normalizedAlias ||
+    normalizedValue.startsWith(`${normalizedAlias} `) ||
+    normalizedValue.endsWith(` ${normalizedAlias}`) ||
+    normalizedValue.includes(` ${normalizedAlias} `)
+  );
 }
 
 function lookupMappedCityKeys(rawArea: string): string[] {
@@ -99,16 +148,20 @@ function lookupMappedCityKeys(rawArea: string): string[] {
     return [];
   }
 
-  const exact = aliasToCityKeys.get(normalizedArea);
+  const collapsedArea = toCollapsed(normalizedArea);
+  const exact =
+    aliasToCityKeys.get(normalizedArea) ??
+    (collapsedArea.length >= 4 ? aliasToCityKeys.get(collapsedArea) : undefined);
   if (exact) {
     return Array.from(exact);
   }
 
   const matches = new Set<string>();
-  for (const [alias, keys] of aliasToCityKeys.entries()) {
-    if (!normalizedArea.includes(alias) && !alias.includes(normalizedArea)) {
+  for (const [alias, keys] of fuzzyAliasEntries) {
+    if (!containsAliasAsWholeTerm(normalizedArea, alias)) {
       continue;
     }
+
     for (const key of keys) {
       matches.add(key);
     }
