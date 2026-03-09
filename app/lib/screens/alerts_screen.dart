@@ -282,7 +282,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                               child: Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
+                                  color: Colors.white.withValues(alpha: 0.15),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
@@ -376,8 +376,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
         itemBuilder: (context, index) {
           final alert = _alerts[index];
           final timestamp = alert.sourceTimestamp ?? alert.ingestedAt;
-          final timeStr = timestamp != null
-              ? '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}'
+          final localTimestamp = timestamp?.toLocal();
+          final timeStr = localTimestamp != null
+              ? '${localTimestamp.hour}:${localTimestamp.minute.toString().padLeft(2, '0')}'
               : 'Recently';
 
           return Container(
@@ -400,7 +401,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFC107).withOpacity(0.2),
+                      color: const Color(0xFFFFC107).withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
