@@ -23,6 +23,12 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  static const Color _pageBackground = Color(0xFFF3F6FB);
+  static const Color _cardBackground = Colors.white;
+  static const Color _accentColor = Color(0xFF1976D2);
+  static const Color _primaryTextColor = Color(0xFF0F172A);
+  static const Color _secondaryTextColor = Color(0xFF475569);
+
   static const Map<String, String> _languageNames = <String, String>{
     'he': 'Hebrew',
     'en': 'English',
@@ -109,34 +115,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasUnsavedLanguage =
+        _selectedLanguageCode != widget.settings.languageCode;
     final cityDisplay =
         widget.settings.cityDisplay ?? widget.settings.cityKey ?? 'Unknown';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1976D2), // Deep App Blue
+      backgroundColor: _pageBackground,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: _pageBackground,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: _primaryTextColor),
         title: const Text(
           'Settings',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: _primaryTextColor,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.2,
+          ),
         ),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           children: <Widget>[
-            // Subscription Card
+            const Text(
+              'Account Preferences',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: _primaryTextColor,
+                letterSpacing: -0.3,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Manage your alert city and interface language.',
+              style: TextStyle(
+                fontSize: 14,
+                color: _secondaryTextColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 20),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _cardBackground,
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
                 boxShadow: const [
                   BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
+                    color: Color(0x140F172A),
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
                   ),
                 ],
               ),
@@ -144,57 +175,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Text(
+                  const Text(
                     'City',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blueGrey[800],
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      color: _primaryTextColor,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_city, color: Color(0xFF1976D2)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          cityDisplay,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
+                  const SizedBox(height: 12),
+                  Material(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    child: InkWell(
+                      key: const Key('settingsChangeCityButton'),
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: _changeCity,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFE8F1FF),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.location_city,
+                                color: _accentColor,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                cityDisplay,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: _primaryTextColor,
+                                ),
+                              ),
+                            ),
+                            const Icon(
+                              Icons.chevron_right,
+                              color: Color(0xFF94A3B8),
+                            ),
+                          ],
                         ),
                       ),
-                      TextButton(
-                        key: const Key('settingsChangeCityButton'),
-                        onPressed: _changeCity,
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFFFFC107), // Yellow
-                        ),
-                        child: const Text(
-                          'CHANGE',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
-
-            // Language Card
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _cardBackground,
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
                 boxShadow: const [
                   BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
+                    color: Color(0x140F172A),
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
                   ),
                 ],
               ),
@@ -202,31 +252,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Text(
+                  const Text(
                     'Language',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blueGrey[800],
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      color: _primaryTextColor,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Choose the app language for alerts and labels.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _secondaryTextColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     key: const Key('settingsLanguageDropdown'),
                     value: _selectedLanguageCode,
                     decoration: InputDecoration(
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: const BorderSide(color: Color(0xFFD5DFEB)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(
-                          color: Color(0xFF1976D2),
+                          color: _accentColor,
                           width: 2,
                         ),
                       ),
@@ -239,7 +300,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         .map(
                           (entry) => DropdownMenuItem<String>(
                             value: entry.key,
-                            child: Text(entry.value),
+                            child: Text(
+                              entry.value,
+                              style: const TextStyle(
+                                color: _primaryTextColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         )
                         .toList(growable: false),
@@ -252,28 +319,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       });
                     },
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    key: const Key('saveLanguageButton'),
-                    onPressed:
-                        _isSavingLanguage ||
-                            _selectedLanguageCode ==
-                                widget.settings.languageCode
-                        ? null
-                        : _saveLanguage,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFC107), // Yellow
-                      foregroundColor: Colors.black87,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      _isSavingLanguage ? 'SAVING...' : 'SAVE LANGUAGE',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                  const SizedBox(height: 14),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    child: hasUnsavedLanguage || _isSavingLanguage
+                        ? ElevatedButton(
+                            key: const Key('saveLanguageButton'),
+                            onPressed: _isSavingLanguage ? null : _saveLanguage,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _accentColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: Text(
+                              _isSavingLanguage ? 'Saving...' : 'Save changes',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
                   ),
                 ],
               ),
