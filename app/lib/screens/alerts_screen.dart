@@ -90,10 +90,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
       },
     );
 
+    _triggerPushRefreshSequence(event.type);
+
     // All-clear events don't need the full-screen popup — just refresh the list
     if (event.type == 'all_clear') {
-      AppLogger.info('AlertsScreen', 'All-clear event, refreshing alerts list');
-      unawaited(_fetchAlerts());
+      AppLogger.info('AlertsScreen', 'All-clear event, skipping popup');
       return;
     }
 
@@ -109,6 +110,24 @@ class _AlertsScreenState extends State<AlertsScreen> {
         ),
       ),
     );
+  }
+
+  void _triggerPushRefreshSequence(String eventType) {
+    unawaited(_fetchAlerts());
+    unawaited(_refreshAlertsAfterPush(eventType));
+  }
+
+  Future<void> _refreshAlertsAfterPush(String eventType) async {
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (!mounted) {
+      return;
+    }
+    AppLogger.info(
+      'AlertsScreen',
+      'Running delayed alerts refresh after push event',
+      <String, Object?>{'type': eventType},
+    );
+    await _fetchAlerts();
   }
 
   Future<void> _fetchAlerts() async {
@@ -170,6 +189,44 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
     final now = DateTime.now();
     final dateDisplay = '${now.day}/${now.month}/${now.year}';
+    final latestAlert = _alerts.isNotEmpty ? _alerts.first : null;
+    final latestTimeText = _formatTime(
+      latestAlert?.sourceTimestamp ?? latestAlert?.ingestedAt,
+    );
+
+    String situationHeadline = 'Checking Alerts...';
+    String situationSubtitle = 'Pulling latest updates from Oref';
+    Color situationColor = const Color(0xFF90CAF9);
+
+    if (_errorMessage != null) {
+      situationHeadline = 'Update Unavailable';
+      situationSubtitle = 'Could not fetch latest alerts. Pull to refresh.';
+      situationColor = const Color(0xFFFFB74D);
+    } else if (!_isLoading && latestAlert == null) {
+      situationHeadline = 'No Active Alerts';
+      situationSubtitle = 'Monitoring Oref continuously';
+      situationColor = const Color(0xFF81C784);
+    } else if (latestAlert != null && _isAllClearAlert(latestAlert)) {
+      situationHeadline = 'All Clear';
+      situationSubtitle = 'Latest event ended at $latestTimeText';
+      situationColor = const Color(0xFF81C784);
+    } else if (latestAlert != null && _isPreAlertAlert(latestAlert)) {
+      situationHeadline = 'Pre-Alert';
+      situationSubtitle = latestAlert.desc.isNotEmpty
+          ? latestAlert.desc
+          : latestAlert.title;
+      situationColor = const Color(0xFFFFD54F);
+    } else if (latestAlert != null) {
+      situationHeadline = 'Take Shelter Now';
+      situationSubtitle = latestAlert.desc.isNotEmpty
+          ? latestAlert.desc
+          : latestAlert.title;
+      situationColor = const Color(0xFFFF8A80);
+    }
+
+    final latestInfoText = latestAlert == null
+        ? 'No recent events yet'
+        : '${latestAlert.areas.length} area(s) • $latestTimeText';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -276,44 +333,63 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                 letterSpacing: 1.1,
                               ),
                             ),
-                            InkWell(
-                              key: const Key('refreshAlertsButton'),
-                              onTap: _fetchAlerts,
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.refresh,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
+                            Text(
+                              'Updated $latestTimeText',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white70,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         Text(
-                          _alerts.isEmpty ? 'NORMAL' : 'ALERTS',
+                          situationHeadline,
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w900,
-                            color: _alerts.isEmpty
-                                ? const Color(0xFF4CAF50)
-                                : const Color(0xFFFF5252),
-                            letterSpacing: 1.5,
+                            color: situationColor,
+                            letterSpacing: 0.8,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
-                          _alerts.isEmpty
-                              ? 'System Monitoring'
-                              : 'Recent alarms detected',
+                          situationSubtitle,
                           style: const TextStyle(
                             fontSize: 14,
                             color: Colors.white70,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              const Icon(
+                                Icons.schedule,
+                                color: Colors.white70,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  latestInfoText,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -375,9 +451,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final alert = _alerts[index];
+          final accentColor = _alertCardAccentColor(alert);
           final timestamp = alert.sourceTimestamp ?? alert.ingestedAt;
-          final timeStr = timestamp != null
-              ? '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}'
+          final localTimestamp = timestamp?.toLocal();
+          final timeStr = localTimestamp != null
+              ? '${localTimestamp.hour}:${localTimestamp.minute.toString().padLeft(2, '0')}'
               : 'Recently';
 
           return Container(
@@ -394,70 +472,104 @@ class _AlertsScreenState extends State<AlertsScreen> {
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFC107).withOpacity(0.2),
-                      shape: BoxShape.circle,
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Container(
+                      width: 6,
+                      decoration: BoxDecoration(
+                        color: accentColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.warning_amber_rounded,
-                      color: Color(0xFFFF9800),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          alert.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.black87,
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            alert.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.black87,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          alert.desc.isNotEmpty
-                              ? alert.desc
-                              : 'Caution advised in your area.',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.black54,
+                          const SizedBox(height: 4),
+                          Text(
+                            alert.desc.isNotEmpty
+                                ? alert.desc
+                                : 'Caution advised in your area.',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          timeStr,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black38,
+                          const SizedBox(height: 8),
+                          Text(
+                            timeStr,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black38,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  Opacity(
-                    opacity: 0.2,
-                    child: Image.asset(
-                      'assets/missile.png',
-                      width: 24,
-                      color: Colors.transparent,
-                      colorBlendMode: BlendMode.multiply,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
         },
       ),
     );
+  }
+
+  bool _isAllClearAlert(AlertDto alert) {
+    final title = alert.title;
+    return alert.category == '10' && title.contains('האירוע הסתיים');
+  }
+
+  Color _alertCardAccentColor(AlertDto alert) {
+    if (_isAllClearAlert(alert)) {
+      return const Color(0xFF4CAF50);
+    }
+
+    if (_isPreAlertAlert(alert)) {
+      return const Color(0xFFFBC02D);
+    }
+
+    return const Color(0xFFE53935);
+  }
+
+  bool _isPreAlertAlert(AlertDto alert) {
+    if (alert.category != '10') {
+      return false;
+    }
+
+    final title = alert.title.trim();
+    final description = alert.desc.trim();
+    final titleLower = title.toLowerCase();
+    final descriptionLower = description.toLowerCase();
+
+    return title.contains('בדקות הקרובות') ||
+        description.contains('בדקות הקרובות') ||
+        titleLower.contains('pre alert') ||
+        titleLower.contains('pre-alert') ||
+        descriptionLower.contains('pre alert') ||
+        descriptionLower.contains('pre-alert') ||
+        titleLower.contains('next few minutes') ||
+        descriptionLower.contains('next few minutes');
+  }
+
+  String _formatTime(DateTime? timestamp) {
+    if (timestamp == null) {
+      return 'now';
+    }
+    final local = timestamp.toLocal();
+    return '${local.hour}:${local.minute.toString().padLeft(2, '0')}';
   }
 }
