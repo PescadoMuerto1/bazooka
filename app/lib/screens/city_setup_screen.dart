@@ -4,11 +4,91 @@ import '../data/oref_cities.dart';
 import '../services/app_logger.dart';
 import '../state/app_settings.dart';
 
+final RegExp _hebrewScriptPattern = RegExp(r'[\u0590-\u05FF]');
+final RegExp _latinScriptPattern = RegExp(r'[A-Za-z]');
+final RegExp _latinWordPattern = RegExp(r'[a-z]');
+
+const Map<String, String> _englishCityOverrides = <String, String>{
+  'תל אביב - יפו': 'Tel Aviv - Yafo',
+  'ירושלים': 'Jerusalem',
+  'חיפה': 'Haifa',
+  'אשקלון': 'Ashkelon',
+  'אשדוד': 'Ashdod',
+  'באר שבע': "Be'er Sheva",
+  'בית שמש': 'Beit Shemesh',
+  'פתח תקווה': 'Petah Tikva',
+  'רמת גן': 'Ramat Gan',
+  'נתניה': 'Netanya',
+  'ראשון לציון': 'Rishon LeZion',
+  'בני ברק': 'Bnei Brak',
+};
+
+const Map<String, List<String>> _englishCityAliases = <String, List<String>>{
+  'תל אביב - יפו': <String>['Tel Aviv', 'Tel Aviv Yafo', 'Tel-Aviv'],
+  'ירושלים': <String>['Jerusalem'],
+  'באר שבע': <String>["Beer Sheva", "Beersheba", "Be'er Sheva"],
+  'פתח תקווה': <String>['Petah Tikva', 'Petach Tikva'],
+  'בית שמש': <String>['Beit Shemesh'],
+};
+
+const Map<String, String> _hebrewToLatin = <String, String>{
+  'א': 'a',
+  'ב': 'b',
+  'ג': 'g',
+  'ד': 'd',
+  'ה': 'h',
+  'ו': 'v',
+  'ז': 'z',
+  'ח': 'h',
+  'ט': 't',
+  'י': 'y',
+  'כ': 'k',
+  'ך': 'k',
+  'ל': 'l',
+  'מ': 'm',
+  'ם': 'm',
+  'נ': 'n',
+  'ן': 'n',
+  'ס': 's',
+  'ע': 'a',
+  'פ': 'p',
+  'ף': 'p',
+  'צ': 'ts',
+  'ץ': 'ts',
+  'ק': 'k',
+  'ר': 'r',
+  'ש': 'sh',
+  'ת': 't',
+};
+
 class CityOption {
-  const CityOption({required this.key, required this.displayName});
+  CityOption({
+    required this.key,
+    required this.hebrewName,
+    required this.englishName,
+    required this.hebrewSearchValue,
+    required this.englishSearchValues,
+  });
 
   final String key;
-  final String displayName;
+  final String hebrewName;
+  final String englishName;
+  final String hebrewSearchValue;
+  final List<String> englishSearchValues;
+
+  String displayNameForLanguage(String languageCode) {
+    if (languageCode == 'en') {
+      return englishName;
+    }
+    return hebrewName;
+  }
+
+  String secondaryNameForLanguage(String languageCode) {
+    if (languageCode == 'en') {
+      return hebrewName;
+    }
+    return englishName;
+  }
 }
 
 class LanguageOption {
@@ -46,7 +126,7 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
   void initState() {
     super.initState();
     _allCityOptions = orefCityNames
-        .map((cityName) => CityOption(key: cityName, displayName: cityName))
+        .map(_buildCityOption)
         .toList(growable: false);
     _selectedCityKey = widget.settings.cityKey;
     _selectedLanguageCode = widget.settings.languageCode;
@@ -71,15 +151,52 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
   }
 
   List<CityOption> get _filteredCityOptions {
-    final query = _searchQuery.trim();
-    if (query.isEmpty) {
+    final rawQuery = _searchQuery.trim();
+    if (rawQuery.isEmpty) {
       return _allCityOptions;
     }
 
+    final hasHebrewInput = _hebrewScriptPattern.hasMatch(rawQuery);
+    final hasLatinInput = _latinScriptPattern.hasMatch(rawQuery);
+
+    if (hasHebrewInput && !hasLatinInput) {
+      final normalizedHebrewQuery = _normalizeHebrewForSearch(rawQuery);
+      return _allCityOptions
+          .where(
+            (option) =>
+                option.hebrewSearchValue.contains(normalizedHebrewQuery),
+          )
+          .toList(growable: false);
+    }
+
+    if (hasLatinInput && !hasHebrewInput) {
+      final normalizedEnglishQuery = _normalizeEnglishForSearch(rawQuery);
+      if (normalizedEnglishQuery.isEmpty) {
+        return _allCityOptions;
+      }
+
+      return _allCityOptions
+          .where(
+            (option) => option.englishSearchValues.any(
+              (searchValue) => searchValue.contains(normalizedEnglishQuery),
+            ),
+          )
+          .toList(growable: false);
+    }
+
+    final normalizedHebrewQuery = _normalizeHebrewForSearch(rawQuery);
+    final normalizedEnglishQuery = _normalizeEnglishForSearch(rawQuery);
     return _allCityOptions
         .where((option) {
-          return option.key.contains(query) ||
-              option.displayName.contains(query);
+          final matchesHebrew =
+              normalizedHebrewQuery.isNotEmpty &&
+              option.hebrewSearchValue.contains(normalizedHebrewQuery);
+          final matchesEnglish =
+              normalizedEnglishQuery.isNotEmpty &&
+              option.englishSearchValues.any(
+                (searchValue) => searchValue.contains(normalizedEnglishQuery),
+              );
+          return matchesHebrew || matchesEnglish;
         })
         .toList(growable: false);
   }
@@ -106,8 +223,9 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
 
     final city = _allCityOptions.firstWhere(
       (option) => option.key == cityKey,
-      orElse: () => CityOption(key: cityKey, displayName: cityKey),
+      orElse: () => _buildCityOption(cityKey),
     );
+    final cityDisplay = city.displayNameForLanguage(_selectedLanguageCode);
 
     setState(() {
       _isSaving = true;
@@ -117,14 +235,14 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
       'Saving city selection',
       <String, Object?>{
         'cityKey': city.key,
-        'cityDisplay': city.displayName,
+        'cityDisplay': cityDisplay,
         'languageCode': _selectedLanguageCode,
       },
     );
 
     await widget.settings.updateCitySelection(
       cityKey: city.key,
-      cityDisplay: city.displayName,
+      cityDisplay: cityDisplay,
       languageCode: _selectedLanguageCode,
     );
 
@@ -145,6 +263,9 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
   @override
   Widget build(BuildContext context) {
     final filteredCityOptions = _filteredCityOptions;
+    final showEnglishSecondary =
+        _selectedLanguageCode == 'en' ||
+        _latinScriptPattern.hasMatch(_searchQuery);
     return Scaffold(
       backgroundColor: const Color(0xFF1976D2), // Deep App Blue
       body: SafeArea(
@@ -297,7 +418,16 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
                       itemBuilder: (context, index) {
                         final city = filteredCityOptions[index];
                         final isSelected = city.key == _selectedCityKey;
-                        final hasSecondLine = city.displayName != city.key;
+                        final primaryName = city.displayNameForLanguage(
+                          _selectedLanguageCode,
+                        );
+                        final secondaryName = city.secondaryNameForLanguage(
+                          _selectedLanguageCode,
+                        );
+                        final hasSecondLine =
+                            showEnglishSecondary &&
+                            secondaryName.isNotEmpty &&
+                            secondaryName != primaryName;
 
                         return InkWell(
                           key: Key('cityOption_${city.key}'),
@@ -353,7 +483,7 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        city.displayName,
+                                        primaryName,
                                         style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
@@ -370,12 +500,14 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
                                               color: Colors.black54,
                                             ),
                                             const SizedBox(width: 4),
-                                            Text(
-                                              city.key,
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.black54,
-                                                fontWeight: FontWeight.w500,
+                                            Expanded(
+                                              child: Text(
+                                                secondaryName,
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.black54,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
                                               ),
                                             ),
                                           ],
@@ -414,5 +546,97 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
         ),
       ),
     );
+  }
+
+  CityOption _buildCityOption(String hebrewName) {
+    final transliteratedName = _transliterateHebrewToEnglish(hebrewName);
+    final englishName = _englishCityOverrides[hebrewName] ?? transliteratedName;
+    final aliases = _englishCityAliases[hebrewName] ?? const <String>[];
+    final englishSearchValues = <String>{
+      _normalizeEnglishForSearch(englishName),
+      _normalizeEnglishForSearch(transliteratedName),
+      for (final alias in aliases) _normalizeEnglishForSearch(alias),
+    }.where((value) => value.isNotEmpty).toList(growable: false);
+
+    return CityOption(
+      key: hebrewName,
+      hebrewName: hebrewName,
+      englishName: englishName,
+      hebrewSearchValue: _normalizeHebrewForSearch(hebrewName),
+      englishSearchValues: englishSearchValues,
+    );
+  }
+
+  String _transliterateHebrewToEnglish(String value) {
+    final buffer = StringBuffer();
+    for (final rune in value.runes) {
+      final character = String.fromCharCode(rune);
+      final replacement = _hebrewToLatin[character];
+      if (replacement != null) {
+        buffer.write(replacement);
+        continue;
+      }
+      if (character == '\'' ||
+          character == '"' ||
+          character == '׳' ||
+          character == '״') {
+        continue;
+      }
+      buffer.write(character);
+    }
+
+    final transliterated = buffer
+        .toString()
+        .replaceAll(RegExp(r'[-־]+'), ' - ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return _titleCaseLatinWords(transliterated);
+  }
+
+  String _titleCaseLatinWords(String value) {
+    final words = value.split(' ');
+    final transformed = words
+        .map((word) {
+          if (word.isEmpty || !_latinWordPattern.hasMatch(word)) {
+            return word;
+          }
+
+          final hyphenParts = word.split('-');
+          final transformedParts = hyphenParts
+              .map((part) {
+                if (part.isEmpty || !_latinWordPattern.hasMatch(part)) {
+                  return part;
+                }
+                return '${part[0].toUpperCase()}${part.substring(1)}';
+              })
+              .toList(growable: false);
+          return transformedParts.join('-');
+        })
+        .toList(growable: false);
+
+    return transformed.join(' ').trim();
+  }
+
+  String _normalizeHebrewForSearch(String value) {
+    return value
+        .replaceAll(RegExp(r'''["'`׳״]'''), '')
+        .replaceAll(RegExp(r'[-־]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  String _normalizeEnglishForSearch(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll(RegExp(r'''["'`׳״]'''), '')
+        .replaceAll(RegExp(r'[-_/.,]+'), ' ')
+        .replaceAll('ph', 'f')
+        .replaceAll(RegExp(r'(kh|ch)'), 'h')
+        .replaceAll(RegExp(r'(tz|ts)'), 'z')
+        .replaceAll('v', 'b')
+        .replaceAll(RegExp(r'[aeiouyw]'), '')
+        .replaceAll(RegExp(r'[^a-z0-9 ]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 }
