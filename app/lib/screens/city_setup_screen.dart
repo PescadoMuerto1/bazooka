@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/oref_cities.dart';
 import '../services/app_logger.dart';
 import '../state/app_settings.dart';
 
@@ -16,15 +17,6 @@ class LanguageOption {
   final String code;
   final String displayName;
 }
-
-const List<CityOption> _cityOptions = <CityOption>[
-  CityOption(key: 'תל אביב', displayName: 'Tel Aviv'),
-  CityOption(key: 'ירושלים', displayName: 'Jerusalem'),
-  CityOption(key: 'חיפה', displayName: 'Haifa'),
-  CityOption(key: 'אשדוד', displayName: 'Ashdod'),
-  CityOption(key: 'בארשבע', displayName: 'Be\'er Sheva'),
-  CityOption(key: 'בית שמש', displayName: 'Beit Shemesh'),
-];
 
 const List<LanguageOption> _languageOptions = <LanguageOption>[
   LanguageOption(code: 'he', displayName: 'Hebrew'),
@@ -43,23 +35,63 @@ class CitySetupScreen extends StatefulWidget {
 }
 
 class _CitySetupScreenState extends State<CitySetupScreen> {
+  late final List<CityOption> _allCityOptions;
+  final TextEditingController _searchController = TextEditingController();
   String? _selectedCityKey;
   late String _selectedLanguageCode;
+  String _searchQuery = '';
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
+    _allCityOptions = orefCityNames
+        .map((cityName) => CityOption(key: cityName, displayName: cityName))
+        .toList(growable: false);
     _selectedCityKey = widget.settings.cityKey;
     _selectedLanguageCode = widget.settings.languageCode;
+    _searchController.addListener(_handleSearchChanged);
     AppLogger.info(
       'CitySetupScreen',
       'Initialized city setup screen',
       <String, Object?>{
+        'availableCityCount': _allCityOptions.length,
         'selectedCityKey': _selectedCityKey ?? '',
         'selectedLanguageCode': _selectedLanguageCode,
       },
     );
+  }
+
+  @override
+  void dispose() {
+    _searchController
+      ..removeListener(_handleSearchChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  List<CityOption> get _filteredCityOptions {
+    final query = _searchQuery.trim();
+    if (query.isEmpty) {
+      return _allCityOptions;
+    }
+
+    return _allCityOptions
+        .where((option) {
+          return option.key.contains(query) ||
+              option.displayName.contains(query);
+        })
+        .toList(growable: false);
+  }
+
+  void _handleSearchChanged() {
+    final nextQuery = _searchController.text;
+    if (nextQuery == _searchQuery) {
+      return;
+    }
+    setState(() {
+      _searchQuery = nextQuery;
+    });
   }
 
   Future<void> _saveSelection() async {
@@ -72,7 +104,10 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
       return;
     }
 
-    final city = _cityOptions.firstWhere((option) => option.key == cityKey);
+    final city = _allCityOptions.firstWhere(
+      (option) => option.key == cityKey,
+      orElse: () => CityOption(key: cityKey, displayName: cityKey),
+    );
 
     setState(() {
       _isSaving = true;
@@ -109,6 +144,7 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final filteredCityOptions = _filteredCityOptions;
     return Scaffold(
       backgroundColor: const Color(0xFF1976D2), // Deep App Blue
       body: SafeArea(
@@ -148,7 +184,7 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // Search Bar Lookalike (Dropdown for now to keep logic same)
+                  // Language picker
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -204,127 +240,175 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
                       },
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  // Search field
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: const <BoxShadow>[
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      key: const Key('citySearchField'),
+                      controller: _searchController,
+                      textInputAction: TextInputAction.search,
+                      decoration: const InputDecoration(
+                        hintText: 'Search city',
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        prefixIcon: Icon(Icons.search, color: Colors.black54),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
             // Cities List
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 8,
-                ),
-                itemCount: _cityOptions.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final city = _cityOptions[index];
-                  final isSelected = city.key == _selectedCityKey;
-
-                  return InkWell(
-                    key: Key('cityOption_${city.key}'),
-                    onTap: () {
-                      setState(() {
-                        _selectedCityKey = city.key;
-                      });
-                      _saveSelection(); // Auto-save on tap for smoother UX
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? const Color(0xFFF0F7FF)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: isSelected
-                            ? Border.all(
-                                color: const Color(0xFFFFC107),
-                                width: 2,
-                              )
-                            : null,
-                        boxShadow: const <BoxShadow>[
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 8,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
+              child: filteredCityOptions.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No cities found',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 32,
-                            height: 32,
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 8,
+                      ),
+                      itemCount: filteredCityOptions.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final city = filteredCityOptions[index];
+                        final isSelected = city.key == _selectedCityKey;
+                        final hasSecondLine = city.displayName != city.key;
+
+                        return InkWell(
+                          key: Key('cityOption_${city.key}'),
+                          onTap: () {
+                            setState(() {
+                              _selectedCityKey = city.key;
+                            });
+                            _saveSelection(); // Auto-save on tap for smoother UX
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.black12),
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Image.network(
-                              'https://flagcdn.com/w80/il.png', // Israel flag for all for MVP
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  city.displayName,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.location_on,
-                                      size: 12,
-                                      color: Colors.black54,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      city.key,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.black54,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
+                              color: isSelected
+                                  ? const Color(0xFFF0F7FF)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: isSelected
+                                  ? Border.all(
+                                      color: const Color(0xFFFFC107),
+                                      width: 2,
+                                    )
+                                  : null,
+                              boxShadow: const <BoxShadow>[
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 4),
                                 ),
                               ],
                             ),
-                          ),
-                          if (isSelected ||
-                              _isSaving && city.key == _selectedCityKey)
-                            _isSaving
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(
-                                    Icons.check_circle,
-                                    color: Color(0xFF4CAF50),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: const Color(0xFFF5F7FA),
+                                    border: Border.all(color: Colors.black12),
                                   ),
-                          if (!isSelected && !_isSaving)
-                            const Icon(
-                              Icons.chevron_right,
-                              color: Colors.black26,
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.flag,
+                                    size: 18,
+                                    color: Color(0xFF1976D2),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        city.displayName,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      if (hasSecondLine) ...[
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.location_on,
+                                              size: 12,
+                                              color: Colors.black54,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              city.key,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.black54,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                if (isSelected ||
+                                    _isSaving && city.key == _selectedCityKey)
+                                  _isSaving
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.check_circle,
+                                          color: Color(0xFF4CAF50),
+                                        ),
+                                if (!isSelected && !_isSaving)
+                                  const Icon(
+                                    Icons.chevron_right,
+                                    color: Colors.black26,
+                                  ),
+                              ],
                             ),
-                        ],
-                      ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
