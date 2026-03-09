@@ -211,7 +211,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
       situationSubtitle = 'Latest event ended at $latestTimeText';
       situationColor = const Color(0xFF81C784);
     } else if (latestAlert != null && _isPreAlertAlert(latestAlert)) {
-      situationHeadline = 'Pre-Alert: Be Ready';
+      situationHeadline = 'Pre-Alert';
       situationSubtitle = latestAlert.desc.isNotEmpty
           ? latestAlert.desc
           : latestAlert.title;
