@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'city_setup_screen.dart';
 import '../services/api_client.dart';
 import '../services/app_logger.dart';
 import '../services/push_service.dart';
@@ -148,12 +149,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _changeCity() async {
-    AppLogger.info('SettingsScreen', 'Changing city');
-    await widget.settings.clearCitySelection();
+    AppLogger.info('SettingsScreen', 'Opening city setup screen');
     if (!mounted) {
       return;
     }
-    Navigator.of(context).pop();
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => CitySetupScreen(settings: widget.settings),
+      ),
+    );
   }
 
   Future<void> _enableAutoOpenAlerts() async {

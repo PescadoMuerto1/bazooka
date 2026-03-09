@@ -190,6 +190,7 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
   @override
   Widget build(BuildContext context) {
     final filteredCityOptions = _filteredCityOptions;
+    final canPop = Navigator.of(context).canPop();
     return Scaffold(
       backgroundColor: const Color(0xFF1976D2), // Deep App Blue
       body: SafeArea(
@@ -207,6 +208,15 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (canPop)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        key: const Key('citySetupBackButton'),
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      ),
+                    ),
                   Center(
                     child: Opacity(
                       opacity: 0.5,
