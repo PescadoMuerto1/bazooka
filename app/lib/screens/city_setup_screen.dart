@@ -30,35 +30,7 @@ class CityOption {
   final String englishName;
   final String hebrewSearchValue;
   final List<String> englishSearchValues;
-
-  String displayNameForLanguage(String languageCode) {
-    if (languageCode == 'en') {
-      return englishName;
-    }
-    return hebrewName;
-  }
-
-  String secondaryNameForLanguage(String languageCode) {
-    if (languageCode == 'en') {
-      return hebrewName;
-    }
-    return englishName;
-  }
 }
-
-class LanguageOption {
-  const LanguageOption({required this.code, required this.displayName});
-
-  final String code;
-  final String displayName;
-}
-
-const List<LanguageOption> _languageOptions = <LanguageOption>[
-  LanguageOption(code: 'he', displayName: 'Hebrew'),
-  LanguageOption(code: 'en', displayName: 'English'),
-  LanguageOption(code: 'ru', displayName: 'Russian'),
-  LanguageOption(code: 'ar', displayName: 'Arabic'),
-];
 
 class CitySetupScreen extends StatefulWidget {
   const CitySetupScreen({super.key, required this.settings});
@@ -73,7 +45,6 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
   late final List<CityOption> _allCityOptions;
   final TextEditingController _searchController = TextEditingController();
   String? _selectedCityKey;
-  late String _selectedLanguageCode;
   String _searchQuery = '';
   bool _isSaving = false;
 
@@ -84,7 +55,6 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
         .map(_buildCityOption)
         .toList(growable: false);
     _selectedCityKey = widget.settings.cityKey;
-    _selectedLanguageCode = widget.settings.languageCode;
     _searchController.addListener(_handleSearchChanged);
     AppLogger.info(
       'CitySetupScreen',
@@ -92,7 +62,7 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
       <String, Object?>{
         'availableCityCount': _allCityOptions.length,
         'selectedCityKey': _selectedCityKey ?? '',
-        'selectedLanguageCode': _selectedLanguageCode,
+        'selectedLanguageCode': widget.settings.languageCode,
       },
     );
   }
@@ -180,7 +150,9 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
       (option) => option.key == cityKey,
       orElse: () => _buildCityOption(cityKey),
     );
-    final cityDisplay = city.displayNameForLanguage(_selectedLanguageCode);
+    final cityDisplay = widget.settings.languageCode == 'en'
+        ? city.englishName
+        : city.hebrewName;
 
     setState(() {
       _isSaving = true;
@@ -191,14 +163,14 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
       <String, Object?>{
         'cityKey': city.key,
         'cityDisplay': cityDisplay,
-        'languageCode': _selectedLanguageCode,
+        'languageCode': widget.settings.languageCode,
       },
     );
 
     await widget.settings.updateCitySelection(
       cityKey: city.key,
       cityDisplay: cityDisplay,
-      languageCode: _selectedLanguageCode,
+      languageCode: widget.settings.languageCode,
     );
 
     if (!mounted) {
@@ -218,9 +190,6 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
   @override
   Widget build(BuildContext context) {
     final filteredCityOptions = _filteredCityOptions;
-    final showSecondaryName =
-        _selectedLanguageCode == 'en' ||
-        _latinScriptPattern.hasMatch(_searchQuery);
     return Scaffold(
       backgroundColor: const Color(0xFF1976D2), // Deep App Blue
       body: SafeArea(
@@ -260,63 +229,6 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // Language picker
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: const <BoxShadow>[
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 10,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 0,
-                      vertical: 4,
-                    ),
-                    child: DropdownButtonFormField<String>(
-                      key: const Key('languageDropdown'),
-                      value: _selectedLanguageCode,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        filled: false,
-                        prefixIcon: Icon(Icons.language, color: Colors.black54),
-                      ),
-                      icon: const Padding(
-                        padding: EdgeInsets.only(right: 16),
-                        child: Icon(
-                          Icons.keyboard_arrow_down,
-                          color: Colors.black54,
-                        ),
-                      ),
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      items: _languageOptions
-                          .map(
-                            (option) => DropdownMenuItem<String>(
-                              value: option.code,
-                              child: Text(option.displayName),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedLanguageCode = value;
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   // Search field
                   Container(
                     decoration: BoxDecoration(
@@ -373,14 +285,9 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
                       itemBuilder: (context, index) {
                         final city = filteredCityOptions[index];
                         final isSelected = city.key == _selectedCityKey;
-                        final primaryName = city.displayNameForLanguage(
-                          _selectedLanguageCode,
-                        );
-                        final secondaryName = city.secondaryNameForLanguage(
-                          _selectedLanguageCode,
-                        );
+                        final primaryName = city.hebrewName;
+                        final secondaryName = city.englishName;
                         final hasSecondLine =
-                            showSecondaryName &&
                             secondaryName.isNotEmpty &&
                             secondaryName != primaryName;
 
