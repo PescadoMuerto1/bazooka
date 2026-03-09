@@ -451,6 +451,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final alert = _alerts[index];
+          final accentColor = _alertCardAccentColor(alert);
           final timestamp = alert.sourceTimestamp ?? alert.ingestedAt;
           final localTimestamp = timestamp?.toLocal();
           final timeStr = localTimestamp != null
@@ -471,65 +472,54 @@ class _AlertsScreenState extends State<AlertsScreen> {
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFC107).withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Container(
+                      width: 6,
+                      decoration: BoxDecoration(
+                        color: accentColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.warning_amber_rounded,
-                      color: Color(0xFFFF9800),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          alert.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.black87,
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            alert.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.black87,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          alert.desc.isNotEmpty
-                              ? alert.desc
-                              : 'Caution advised in your area.',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.black54,
+                          const SizedBox(height: 4),
+                          Text(
+                            alert.desc.isNotEmpty
+                                ? alert.desc
+                                : 'Caution advised in your area.',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          timeStr,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black38,
+                          const SizedBox(height: 8),
+                          Text(
+                            timeStr,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black38,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  Opacity(
-                    opacity: 0.2,
-                    child: Image.asset(
-                      'assets/missile.png',
-                      width: 24,
-                      color: Colors.transparent,
-                      colorBlendMode: BlendMode.multiply,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
@@ -541,6 +531,18 @@ class _AlertsScreenState extends State<AlertsScreen> {
   bool _isAllClearAlert(AlertDto alert) {
     final title = alert.title;
     return alert.category == '10' && title.contains('האירוע הסתיים');
+  }
+
+  Color _alertCardAccentColor(AlertDto alert) {
+    if (_isAllClearAlert(alert)) {
+      return const Color(0xFF4CAF50);
+    }
+
+    if (_isPreAlertAlert(alert)) {
+      return const Color(0xFFFBC02D);
+    }
+
+    return const Color(0xFFE53935);
   }
 
   bool _isPreAlertAlert(AlertDto alert) {
