@@ -251,7 +251,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   const Text(
-                    'Language',
+                    'Alert Text Language',
                     style: TextStyle(
                       fontSize: 19,
                       fontWeight: FontWeight.w800,
@@ -260,7 +260,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Choose the app language for alerts and labels.',
+                    'Choose the app language for alerts text.',
                     style: TextStyle(
                       fontSize: 13,
                       color: _secondaryTextColor,
