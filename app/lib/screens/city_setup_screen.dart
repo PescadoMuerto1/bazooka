@@ -1,64 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../data/oref_cities.dart';
+import '../data/oref_city_name_pairs.dart';
 import '../services/app_logger.dart';
 import '../state/app_settings.dart';
 
 final RegExp _hebrewScriptPattern = RegExp(r'[\u0590-\u05FF]');
 final RegExp _latinScriptPattern = RegExp(r'[A-Za-z]');
-final RegExp _latinWordPattern = RegExp(r'[a-z]');
-
-const Map<String, String> _englishCityOverrides = <String, String>{
-  'תל אביב - יפו': 'Tel Aviv - Yafo',
-  'ירושלים': 'Jerusalem',
-  'חיפה': 'Haifa',
-  'אשקלון': 'Ashkelon',
-  'אשדוד': 'Ashdod',
-  'באר שבע': "Be'er Sheva",
-  'בית שמש': 'Beit Shemesh',
-  'פתח תקווה': 'Petah Tikva',
-  'רמת גן': 'Ramat Gan',
-  'נתניה': 'Netanya',
-  'ראשון לציון': 'Rishon LeZion',
-  'בני ברק': 'Bnei Brak',
-};
 
 const Map<String, List<String>> _englishCityAliases = <String, List<String>>{
   'תל אביב - יפו': <String>['Tel Aviv', 'Tel Aviv Yafo', 'Tel-Aviv'],
   'ירושלים': <String>['Jerusalem'],
-  'באר שבע': <String>["Beer Sheva", "Beersheba", "Be'er Sheva"],
+  'באר שבע': <String>['Beer Sheva', 'Beersheba', "Be'er Sheva"],
   'פתח תקווה': <String>['Petah Tikva', 'Petach Tikva'],
   'בית שמש': <String>['Beit Shemesh'],
-};
-
-const Map<String, String> _hebrewToLatin = <String, String>{
-  'א': 'a',
-  'ב': 'b',
-  'ג': 'g',
-  'ד': 'd',
-  'ה': 'h',
-  'ו': 'v',
-  'ז': 'z',
-  'ח': 'h',
-  'ט': 't',
-  'י': 'y',
-  'כ': 'k',
-  'ך': 'k',
-  'ל': 'l',
-  'מ': 'm',
-  'ם': 'm',
-  'נ': 'n',
-  'ן': 'n',
-  'ס': 's',
-  'ע': 'a',
-  'פ': 'p',
-  'ף': 'p',
-  'צ': 'ts',
-  'ץ': 'ts',
-  'ק': 'k',
-  'ר': 'r',
-  'ש': 'sh',
-  'ת': 't',
 };
 
 class CityOption {
@@ -263,7 +218,7 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
   @override
   Widget build(BuildContext context) {
     final filteredCityOptions = _filteredCityOptions;
-    final showEnglishSecondary =
+    final showSecondaryName =
         _selectedLanguageCode == 'en' ||
         _latinScriptPattern.hasMatch(_searchQuery);
     return Scaffold(
@@ -425,7 +380,7 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
                           _selectedLanguageCode,
                         );
                         final hasSecondLine =
-                            showEnglishSecondary &&
+                            showSecondaryName &&
                             secondaryName.isNotEmpty &&
                             secondaryName != primaryName;
 
@@ -549,12 +504,10 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
   }
 
   CityOption _buildCityOption(String hebrewName) {
-    final transliteratedName = _transliterateHebrewToEnglish(hebrewName);
-    final englishName = _englishCityOverrides[hebrewName] ?? transliteratedName;
+    final englishName = orefCityEnglishNames[hebrewName] ?? hebrewName;
     final aliases = _englishCityAliases[hebrewName] ?? const <String>[];
     final englishSearchValues = <String>{
       _normalizeEnglishForSearch(englishName),
-      _normalizeEnglishForSearch(transliteratedName),
       for (final alias in aliases) _normalizeEnglishForSearch(alias),
     }.where((value) => value.isNotEmpty).toList(growable: false);
 
@@ -565,56 +518,6 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
       hebrewSearchValue: _normalizeHebrewForSearch(hebrewName),
       englishSearchValues: englishSearchValues,
     );
-  }
-
-  String _transliterateHebrewToEnglish(String value) {
-    final buffer = StringBuffer();
-    for (final rune in value.runes) {
-      final character = String.fromCharCode(rune);
-      final replacement = _hebrewToLatin[character];
-      if (replacement != null) {
-        buffer.write(replacement);
-        continue;
-      }
-      if (character == '\'' ||
-          character == '"' ||
-          character == '׳' ||
-          character == '״') {
-        continue;
-      }
-      buffer.write(character);
-    }
-
-    final transliterated = buffer
-        .toString()
-        .replaceAll(RegExp(r'[-־]+'), ' - ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    return _titleCaseLatinWords(transliterated);
-  }
-
-  String _titleCaseLatinWords(String value) {
-    final words = value.split(' ');
-    final transformed = words
-        .map((word) {
-          if (word.isEmpty || !_latinWordPattern.hasMatch(word)) {
-            return word;
-          }
-
-          final hyphenParts = word.split('-');
-          final transformedParts = hyphenParts
-              .map((part) {
-                if (part.isEmpty || !_latinWordPattern.hasMatch(part)) {
-                  return part;
-                }
-                return '${part[0].toUpperCase()}${part.substring(1)}';
-              })
-              .toList(growable: false);
-          return transformedParts.join('-');
-        })
-        .toList(growable: false);
-
-    return transformed.join(' ').trim();
   }
 
   String _normalizeHebrewForSearch(String value) {
@@ -629,7 +532,7 @@ class _CitySetupScreenState extends State<CitySetupScreen> {
     return value
         .toLowerCase()
         .replaceAll(RegExp(r'''["'`׳״]'''), '')
-        .replaceAll(RegExp(r'[-_/.,]+'), ' ')
+        .replaceAll(RegExp(r'[-_/.,()]+'), ' ')
         .replaceAll('ph', 'f')
         .replaceAll(RegExp(r'(kh|ch)'), 'h')
         .replaceAll(RegExp(r'(tz|ts)'), 'z')
