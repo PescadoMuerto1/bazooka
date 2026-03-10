@@ -26,7 +26,8 @@ class AlertsScreen extends StatefulWidget {
   State<AlertsScreen> createState() => _AlertsScreenState();
 }
 
-class _AlertsScreenState extends State<AlertsScreen> {
+class _AlertsScreenState extends State<AlertsScreen>
+    with WidgetsBindingObserver {
   List<AlertDto> _alerts = const <AlertDto>[];
   bool _isLoading = true;
   String? _errorMessage;
@@ -62,6 +63,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     AppLogger.info('AlertsScreen', 'initState');
     _pushAlertSubscription = widget.pushService.alertEvents.listen(
       _handlePushAlertEvent,
@@ -78,8 +80,17 @@ class _AlertsScreenState extends State<AlertsScreen> {
   @override
   void dispose() {
     AppLogger.info('AlertsScreen', 'dispose');
+    WidgetsBinding.instance.removeObserver(this);
     _pushAlertSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      AppLogger.info('AlertsScreen', 'App resumed, refreshing alerts');
+      unawaited(_fetchAlerts());
+    }
   }
 
   void _handlePushAlertEvent(PushAlertEvent event) {
