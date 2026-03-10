@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -168,6 +169,9 @@ class PushService implements PushSyncService {
       'High-priority Bazooka safety alerts';
   static const _alertsSoundResource = 'alert_song';
   static const _allClearChannelId = 'bazooka_all_clear_channel';
+  static const _deviceStateChannel = MethodChannel(
+    'com.bazooka.alerts/device_state',
+  );
   static const _allClearChannelName = 'All Clear';
   static const _allClearChannelDescription =
       'Notifications when it is safe to leave the shelter';
@@ -312,9 +316,7 @@ class PushService implements PushSyncService {
           return;
         }
 
-        _alertEventsController.add(
-          PushAlertEvent.fromPayloadJson(payload, shouldDisplayPopup: false),
-        );
+        unawaited(_handleNotificationResponse(payload));
       },
     );
 
@@ -362,7 +364,7 @@ class PushService implements PushSyncService {
       _alertEventsController.add(
         PushAlertEvent.fromRemoteMessage(
           initialMessage,
-          shouldDisplayPopup: false,
+          shouldDisplayPopup: true,
         ),
       );
     }
@@ -396,6 +398,34 @@ class PushService implements PushSyncService {
     );
   }
 
+  Future<void> _handleNotificationResponse(String payload) async {
+    final isLocked = await _isDeviceLocked();
+    AppLogger.info(
+      'PushService',
+      'Notification response received',
+      <String, Object?>{'isDeviceLocked': isLocked},
+    );
+    _alertEventsController.add(
+      PushAlertEvent.fromPayloadJson(payload, shouldDisplayPopup: isLocked),
+    );
+  }
+
+  static Future<bool> _isDeviceLocked() async {
+    try {
+      final result = await _deviceStateChannel.invokeMethod<bool>(
+        'isDeviceLocked',
+      );
+      return result ?? false;
+    } catch (error) {
+      AppLogger.warn(
+        'PushService',
+        'Could not check device lock state',
+        <String, Object?>{'error': error.toString()},
+      );
+      return false;
+    }
+  }
+
   void _emitPendingLaunchEventIfAny() {
     final pending = _pendingLaunchAlertEvent;
     if (pending == null) {
@@ -417,7 +447,7 @@ class PushService implements PushSyncService {
 
     _pendingLaunchAlertEvent = PushAlertEvent.fromPayloadJson(
       payload,
-      shouldDisplayPopup: false,
+      shouldDisplayPopup: true,
     );
     AppLogger.info('PushService', 'Captured launch payload from notification');
   }
