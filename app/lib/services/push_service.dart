@@ -231,6 +231,7 @@ class PushService implements PushSyncService {
     await _initializeLocalNotifications();
     await _initializePushEventListeners();
     _emitPendingLaunchEventIfAny();
+    await _localNotificationsPlugin.cancelAll();
 
     try {
       await _messaging.requestPermission(alert: true, badge: true, sound: true);
@@ -339,7 +340,7 @@ class PushService implements PushSyncService {
         'Foreground push received',
         <String, Object?>{'messageId': message.messageId ?? ''},
       );
-      unawaited(_showForegroundNotification(message));
+      unawaited(_localNotificationsPlugin.cancelAll());
       _alertEventsController.add(
         PushAlertEvent.fromRemoteMessage(message, shouldDisplayPopup: true),
       );
