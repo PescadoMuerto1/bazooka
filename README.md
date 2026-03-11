@@ -11,24 +11,18 @@ Popup flow assets are included under `docs/media/`.
 
 ### Screenshots
 
-#### Home / Current Status
-
-![Home Current Status](docs/media/home-status.jpg)
-
-#### Settings
-
-![Settings Screen](docs/media/settings-screen.jpg)
-
-#### City Picker
-
-![City Picker Screen](docs/media/city-picker-screen.jpg)
+<p align="center">
+  <img src="docs/media/home-status.jpg" alt="Home / Current Status" width="250" />
+  <img src="docs/media/settings-screen.jpg" alt="Settings Screen" width="250" />
+  <img src="docs/media/city-picker-screen.jpg" alt="City Picker Screen" width="250" />
+</p>
 
 ### Screen Recording
 
-<video src="docs/media/popup-demo.mp4" controls muted playsinline width="360"></video>
+Your markdown viewer may not support inline video playback.
 
-If video embedding is not supported in your markdown viewer:
-[Watch popup recording (MP4)](docs/media/popup-demo.mp4)
+- [Open popup recording with sound (MP4)](docs/media/popup-demo.mp4)
+- [Download popup recording (MP4)](docs/media/popup-demo.mp4)
 
 ## Tech Stack
 
