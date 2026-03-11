@@ -1,82 +1,95 @@
 # Bazooka MVP
 
-Node.js backend + Flutter Android app for city-based Home Front alerts with FCM push delivery.
+Bazooka is a city-based Home Front alert MVP:
 
-## Project Structure
+- `server/`: Node.js + Express + MongoDB backend that polls OREF and fans out FCM alerts.
+- `app/`: Flutter Android app with city onboarding, recent alerts, settings, and popup notifications.
 
-- `server/` Express + MongoDB + Oref poller + Firebase Admin fanout
-- `app/` Flutter Android app with city onboarding, recent alerts, settings, and FCM token sync
+## Popup Demo
+
+Popup flow assets are included under `docs/media/`.
+
+### Screenshots
+
+#### Home / Current Status
+
+![Home Current Status](docs/media/home-status.jpg)
+
+#### Settings
+
+![Settings Screen](docs/media/settings-screen.jpg)
+
+#### City Picker
+
+![City Picker Screen](docs/media/city-picker-screen.jpg)
+
+### Screen Recording
+
+<video src="docs/media/popup-demo.mp4" controls muted playsinline width="360"></video>
+
+If video embedding is not supported in your markdown viewer:
+[Watch popup recording (MP4)](docs/media/popup-demo.mp4)
+
+## Tech Stack
+
+- Backend: Node.js 20+, TypeScript, Express, MongoDB, Firebase Admin SDK
+- Mobile: Flutter (Android), Firebase Messaging, flutter_local_notifications
 
 ## Prerequisites
 
 - Node.js 20+
-- MongoDB (`mongod`)
+- MongoDB running locally (`mongod`)
 - Flutter SDK
-- Firebase project for:
-  - Android app (`google-services.json`)
-  - Backend Admin SDK (`serviceAccountKey.json`)
+- Firebase project and credentials:
+  - `app/android/app/google-services.json`
+  - `server/serviceAccountKey.json`
 
-## Firebase Setup
+## Setup
 
-### Android app
-
-Place file at:
-
-- `app/android/app/google-services.json`
-
-The package name in Firebase must match:
-
-- `com.bazooka.alerts.app`
-
-### Backend
-
-Create `server/.env` from `server/.env.example` and set:
-
-- `FCM_ENABLED=true`
-- `FIREBASE_SERVICE_ACCOUNT_PATH=./serviceAccountKey.json`
-
-## Run Backend
+### 1. Backend
 
 ```bash
 cd server
 npm install
-npm run build
-npm run lint
 cp .env.example .env
+npm run lint
+npm run build
 npm run dev
 ```
 
-## Backend Dev Tools Page
+Important backend env values (`server/.env`):
 
-When backend is running, open:
+- `FCM_ENABLED=true`
+- `FIREBASE_SERVICE_ACCOUNT_PATH=./serviceAccountKey.json`
+- `DEV_TOOLS_ENABLED=true`
 
-- `http://127.0.0.1:3000/dev/tools`
-
-This page includes:
-
-- Quick buttons to send fake alerts (Tel Aviv, Haifa, Jerusalem, multi-city).
-- Custom fake alert form (title, desc, areas, category).
-- Live backend state panel (devices, subscriptions, deliveries).
-
-Config:
-
-- `DEV_TOOLS_ENABLED=true` in `server/.env` (enabled by default in `.env.example`).
-- Set to `false` to disable this page/routes.
-
-## Run Android App
+### 2. Android App
 
 ```bash
 cd app
 flutter pub get
+cp .env.example .env
 flutter analyze
 flutter test
 flutter run --dart-define=BACKEND_BASE_URL=http://10.0.2.2:3000
 ```
 
+Firebase Android package name must match:
+
+- `com.bazooka.alerts.app`
+
+## Developer Testing
+
+When backend is running, open:
+
+- `http://127.0.0.1:3000/dev/tools`
+
+Use this page to trigger test alerts (preset + custom) and verify popup behavior in the app.
+
 ## End-to-End Smoke Checklist
 
-1. Register two devices with different cities (`/register-device` + `/subscription`).
-2. Confirm `alerts` collection receives poller inserts.
-3. Confirm matching device gets delivery logs in `deliveries`.
-4. In app Settings, run **notification test** to re-sync token/subscription.
-5. Verify alerts list refresh works and city/language updates persist.
+1. Register at least one device and city subscription (`/register-device`, `/subscription`).
+2. Trigger a test alert from `/dev/tools`.
+3. Confirm the app receives push and opens the popup with sound.
+4. Confirm alerts list refreshes after push.
+5. Confirm backend writes delivery and alert logs as expected.
