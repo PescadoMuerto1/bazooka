@@ -15,6 +15,8 @@ let messagingClient: Messaging | null | undefined;
 const SERVER_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const MAX_TITLE_LENGTH = 120;
 const MAX_BODY_LENGTH = 220;
+const ALERTS_CHANNEL_ID = "bazooka_alerts_channel";
+const ALL_CLEAR_CHANNEL_ID = "bazooka_all_clear_channel";
 
 function getFirstExistingPath(candidates: string[]): string | null {
   for (const candidate of candidates) {
@@ -247,9 +249,25 @@ export async function fanoutAlertToSubscribedDevices(
         MAX_BODY_LENGTH
       );
       const alertType = deriveAlertType(alert);
+      const androidNotification: {
+        channelId: string;
+        visibility: "public";
+        sound?: string;
+      } = {
+        channelId: alertType === "all_clear" ? ALL_CLEAR_CHANNEL_ID : ALERTS_CHANNEL_ID,
+        visibility: "public"
+      };
+      if (alertType !== "all_clear") {
+        androidNotification.sound = "alert_song";
+      }
 
       await messaging.send({
         token: device.fcmToken,
+        // Include a standard notification payload so closed-app delivery stays reliable in release builds.
+        notification: {
+          title: messageTitle,
+          body: messageBody
+        },
         data: {
           alertId: alert.alertId,
           type: alertType,
@@ -259,7 +277,8 @@ export async function fanoutAlertToSubscribedDevices(
           matchedCityKey: subscription.cityKey
         },
         android: {
-          priority: "high"
+          priority: "high",
+          notification: androidNotification
         }
       });
 
