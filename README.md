@@ -1,6 +1,6 @@
-# Bazooka MVP
+# Bazooka APP
 
-Bazooka is a city-based Home Front alert MVP:
+Bazooka is a city-based Home Front alert app that uses the "Bazooka" song as its alert sound:
 
 - `server/`: Node.js + Express + MongoDB backend that polls OREF and fans out FCM alerts.
 - `app/`: Flutter Android app with city onboarding, recent alerts, settings, and popup notifications.
