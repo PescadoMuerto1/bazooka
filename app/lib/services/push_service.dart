@@ -491,7 +491,6 @@ class PushService implements PushSyncService {
         importance: Importance.max,
         priority: Priority.max,
         playSound: true,
-        sound: RawResourceAndroidNotificationSound(_alertsSoundResource),
         audioAttributesUsage: AudioAttributesUsage.alarm,
         fullScreenIntent: true,
         category: AndroidNotificationCategory.call,
