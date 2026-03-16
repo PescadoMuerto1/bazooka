@@ -9,11 +9,13 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../state/app_settings.dart';
+import 'alert_sound_config.dart';
 import 'api_client.dart';
 import 'app_logger.dart';
 
 class PushAlertEvent {
   const PushAlertEvent({
+    required this.alertId,
     required this.title,
     required this.body,
     required this.type,
@@ -21,8 +23,10 @@ class PushAlertEvent {
     required this.matchedCityKey,
     required this.areas,
     required this.shouldDisplayPopup,
+    required this.shouldPlaySound,
   });
 
+  final String alertId;
   final String title;
   final String body;
   final String type;
@@ -30,6 +34,19 @@ class PushAlertEvent {
   final String matchedCityKey;
   final List<String> areas;
   final bool shouldDisplayPopup;
+  final bool shouldPlaySound;
+
+  String dedupeKey() {
+    return <String>[
+      alertId,
+      title,
+      body,
+      type,
+      matchedCityKey,
+      areasCount.toString(),
+      areas.join(','),
+    ].join('|');
+  }
 
   static int _parseAreasCount(Object? rawValue, int fallback) {
     if (rawValue == null) {
@@ -47,6 +64,7 @@ class PushAlertEvent {
   factory PushAlertEvent.fromRemoteMessage(
     RemoteMessage message, {
     bool shouldDisplayPopup = false,
+    bool shouldPlaySound = true,
   }) {
     final notification = message.notification;
     final rawAreas = message.data['areas'] ?? '';
@@ -59,12 +77,14 @@ class PushAlertEvent {
     final matchedCityKey =
         message.data['matchedCityKey']?.toString().trim() ?? '';
     final type = message.data['type']?.toString().trim() ?? 'update';
+    final alertId = message.data['alertId']?.toString().trim() ?? '';
     final areasCount = _parseAreasCount(
       message.data['areasCount'],
       areas.length,
     );
 
     return PushAlertEvent(
+      alertId: alertId,
       title:
           notification?.title ??
           message.data['title']?.toString() ??
@@ -75,17 +95,20 @@ class PushAlertEvent {
       matchedCityKey: matchedCityKey,
       areas: areas,
       shouldDisplayPopup: shouldDisplayPopup,
+      shouldPlaySound: shouldPlaySound,
     );
   }
 
   factory PushAlertEvent.fromPayloadJson(
     String payload, {
     bool shouldDisplayPopup = false,
+    bool shouldPlaySound = false,
   }) {
     try {
       final decoded = jsonDecode(payload);
       if (decoded is! Map<String, dynamic>) {
         return PushAlertEvent(
+          alertId: '',
           title: 'Bazooka Alert',
           body: '',
           type: 'update',
@@ -93,6 +116,7 @@ class PushAlertEvent {
           matchedCityKey: '',
           areas: <String>[],
           shouldDisplayPopup: shouldDisplayPopup,
+          shouldPlaySound: shouldPlaySound,
         );
       }
 
@@ -105,10 +129,12 @@ class PushAlertEvent {
                 .toList(growable: false)
           : const <String>[];
       final type = decoded['type']?.toString().trim() ?? 'update';
+      final alertId = decoded['alertId']?.toString().trim() ?? '';
       final matchedCityKey = decoded['matchedCityKey']?.toString().trim() ?? '';
       final areasCount = _parseAreasCount(decoded['areasCount'], areas.length);
 
       return PushAlertEvent(
+        alertId: alertId,
         title: decoded['title']?.toString() ?? 'Bazooka Alert',
         body: decoded['body']?.toString() ?? '',
         type: type.isEmpty ? 'update' : type,
@@ -116,9 +142,11 @@ class PushAlertEvent {
         matchedCityKey: matchedCityKey,
         areas: areas,
         shouldDisplayPopup: shouldDisplayPopup,
+        shouldPlaySound: shouldPlaySound,
       );
     } catch (_) {
       return PushAlertEvent(
+        alertId: '',
         title: 'Bazooka Alert',
         body: '',
         type: 'update',
@@ -126,12 +154,14 @@ class PushAlertEvent {
         matchedCityKey: '',
         areas: <String>[],
         shouldDisplayPopup: shouldDisplayPopup,
+        shouldPlaySound: shouldPlaySound,
       );
     }
   }
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      'alertId': alertId,
       'title': title,
       'body': body,
       'type': type,
@@ -163,18 +193,20 @@ class PushService implements PushSyncService {
 
   static const _deviceIdStorageKey = 'device_id';
   static const _appVersion = '1.0.0';
-  static const _alertsChannelId = 'bazooka_alerts_channel';
-  static const _alertsChannelName = 'Bazooka Alerts';
-  static const _alertsChannelDescription =
-      'High-priority Bazooka safety alerts';
-  static const _alertsSoundResource = 'alert_song';
-  static const _allClearChannelId = 'bazooka_all_clear_channel';
   static const _deviceStateChannel = MethodChannel(
     'com.bazooka.alerts/device_state',
   );
-  static const _allClearChannelName = 'All Clear';
-  static const _allClearChannelDescription =
-      'Notifications when it is safe to leave the shelter';
+  static const _duplicateAlertWindow = Duration(seconds: 8);
+  static const _legacyAlertsChannelIds = <String>[
+    'bazooka_alerts_channel',
+    'bazooka_alerts_channel_v2',
+    'bazooka_alerts_channel_v3',
+    'bazooka_alerts_channel_v4',
+  ];
+  static const _legacyPreAlertChannelIds = <String>[
+    'bazooka_pre_alert_channel',
+    'bazooka_pre_alert_channel_v2',
+  ];
   static PushAlertEvent? _pendingLaunchAlertEvent;
 
   final FirebaseMessaging _messaging;
@@ -189,6 +221,7 @@ class PushService implements PushSyncService {
   bool _initialized = false;
   bool _localNotificationsInitialized = false;
   bool _pushListenersInitialized = false;
+  final Map<String, DateTime> _recentAlertEventTimes = <String, DateTime>{};
 
   @override
   Future<void> initializeAndSync({
@@ -230,8 +263,8 @@ class PushService implements PushSyncService {
 
     await _initializeLocalNotifications();
     await _initializePushEventListeners();
-    _emitPendingLaunchEventIfAny();
     await _localNotificationsPlugin.cancelAll();
+    _emitPendingLaunchEventIfAny();
 
     try {
       await _messaging.requestPermission(alert: true, badge: true, sound: true);
@@ -341,8 +374,12 @@ class PushService implements PushSyncService {
         <String, Object?>{'messageId': message.messageId ?? ''},
       );
       unawaited(_localNotificationsPlugin.cancelAll());
-      _alertEventsController.add(
-        PushAlertEvent.fromRemoteMessage(message, shouldDisplayPopup: true),
+      _emitAlertEvent(
+        PushAlertEvent.fromRemoteMessage(
+          message,
+          shouldDisplayPopup: true,
+          shouldPlaySound: true,
+        ),
       );
     });
 
@@ -350,8 +387,12 @@ class PushService implements PushSyncService {
       AppLogger.info('PushService', 'Push opened app', <String, Object?>{
         'messageId': message.messageId ?? '',
       });
-      _alertEventsController.add(
-        PushAlertEvent.fromRemoteMessage(message, shouldDisplayPopup: false),
+      _emitAlertEvent(
+        PushAlertEvent.fromRemoteMessage(
+          message,
+          shouldDisplayPopup: false,
+          shouldPlaySound: false,
+        ),
       );
     });
 
@@ -362,41 +403,17 @@ class PushService implements PushSyncService {
         'Initial push message found',
         <String, Object?>{'messageId': initialMessage.messageId ?? ''},
       );
-      _alertEventsController.add(
+      _emitAlertEvent(
         PushAlertEvent.fromRemoteMessage(
           initialMessage,
           shouldDisplayPopup: true,
+          shouldPlaySound: false,
         ),
       );
     }
 
     _pushListenersInitialized = true;
     AppLogger.info('PushService', 'Push listeners initialized');
-  }
-
-  Future<void> _showForegroundNotification(RemoteMessage message) async {
-    final event = PushAlertEvent.fromRemoteMessage(message);
-    AppLogger.info(
-      'PushService',
-      'Showing foreground notification',
-      <String, Object?>{
-        'title': event.title,
-        'areasCount': event.areasCount,
-        'type': event.type,
-      },
-    );
-
-    final details = event.type == 'all_clear'
-        ? _allClearNotificationDetails()
-        : _alertNotificationDetails();
-
-    await _localNotificationsPlugin.show(
-      event.hashCode,
-      event.title,
-      event.body,
-      details,
-      payload: jsonEncode(event.toJson()),
-    );
   }
 
   Future<void> _handleNotificationResponse(String payload) async {
@@ -406,9 +423,43 @@ class PushService implements PushSyncService {
       'Notification response received',
       <String, Object?>{'isDeviceLocked': isLocked},
     );
-    _alertEventsController.add(
-      PushAlertEvent.fromPayloadJson(payload, shouldDisplayPopup: isLocked),
+    if (isLocked) {
+      await _localNotificationsPlugin.cancelAll();
+    }
+    _emitAlertEvent(
+      PushAlertEvent.fromPayloadJson(
+        payload,
+        shouldDisplayPopup: isLocked,
+        shouldPlaySound: isLocked,
+      ),
     );
+  }
+
+  void _emitAlertEvent(PushAlertEvent event) {
+    final now = DateTime.now();
+    _recentAlertEventTimes.removeWhere(
+      (_, timestamp) => now.difference(timestamp) > _duplicateAlertWindow,
+    );
+
+    final dedupeKey = event.dedupeKey();
+    final previousEmission = _recentAlertEventTimes[dedupeKey];
+    if (previousEmission != null &&
+        now.difference(previousEmission) <= _duplicateAlertWindow) {
+      AppLogger.warn(
+        'PushService',
+        'Suppressing duplicate alert event',
+        <String, Object?>{
+          'alertId': event.alertId,
+          'type': event.type,
+          'matchedCityKey': event.matchedCityKey,
+          'shouldDisplayPopup': event.shouldDisplayPopup,
+        },
+      );
+      return;
+    }
+
+    _recentAlertEventTimes[dedupeKey] = now;
+    _alertEventsController.add(event);
   }
 
   static Future<bool> _isDeviceLocked() async {
@@ -435,7 +486,7 @@ class PushService implements PushSyncService {
 
     _pendingLaunchAlertEvent = null;
     AppLogger.info('PushService', 'Emitting pending launch notification event');
-    _alertEventsController.add(pending);
+    _emitAlertEvent(pending);
   }
 
   Future<void> _captureNotificationLaunchPayload() async {
@@ -449,6 +500,7 @@ class PushService implements PushSyncService {
     _pendingLaunchAlertEvent = PushAlertEvent.fromPayloadJson(
       payload,
       shouldDisplayPopup: true,
+      shouldPlaySound: true,
     );
     AppLogger.info('PushService', 'Captured launch payload from notification');
   }
@@ -457,18 +509,31 @@ class PushService implements PushSyncService {
     FlutterLocalNotificationsPlugin plugin,
   ) async {
     const alertChannel = AndroidNotificationChannel(
-      _alertsChannelId,
-      _alertsChannelName,
-      description: _alertsChannelDescription,
+      AlertSoundConfig.alertsChannelId,
+      AlertSoundConfig.alertsChannelName,
+      description: AlertSoundConfig.alertsChannelDescription,
       importance: Importance.max,
       playSound: true,
-      sound: RawResourceAndroidNotificationSound(_alertsSoundResource),
+      sound: RawResourceAndroidNotificationSound(
+        AlertSoundConfig.alertsSoundResource,
+      ),
+    );
+
+    const preAlertChannel = AndroidNotificationChannel(
+      AlertSoundConfig.preAlertChannelId,
+      AlertSoundConfig.preAlertChannelName,
+      description: AlertSoundConfig.preAlertChannelDescription,
+      importance: Importance.max,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound(
+        AlertSoundConfig.preAlertSoundResource,
+      ),
     );
 
     const allClearChannel = AndroidNotificationChannel(
-      _allClearChannelId,
-      _allClearChannelName,
-      description: _allClearChannelDescription,
+      AlertSoundConfig.allClearChannelId,
+      AlertSoundConfig.allClearChannelName,
+      description: AlertSoundConfig.allClearChannelDescription,
       importance: Importance.defaultImportance,
       playSound: true,
     );
@@ -477,38 +542,45 @@ class PushService implements PushSyncService {
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >();
+    for (final channelId in _legacyAlertsChannelIds) {
+      await androidPlugin?.deleteNotificationChannel(channelId);
+    }
+    for (final channelId in _legacyPreAlertChannelIds) {
+      await androidPlugin?.deleteNotificationChannel(channelId);
+    }
     await androidPlugin?.createNotificationChannel(alertChannel);
+    await androidPlugin?.createNotificationChannel(preAlertChannel);
     await androidPlugin?.createNotificationChannel(allClearChannel);
     AppLogger.info('PushService', 'Android notification channels ensured');
   }
 
-  static NotificationDetails _alertNotificationDetails() {
-    return const NotificationDetails(
+  static NotificationDetails _notificationDetailsForType(String type) {
+    if (AlertSoundConfig.isAllClear(type)) {
+      return const NotificationDetails(
+        android: AndroidNotificationDetails(
+          AlertSoundConfig.allClearChannelId,
+          AlertSoundConfig.allClearChannelName,
+          channelDescription: AlertSoundConfig.allClearChannelDescription,
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+          playSound: true,
+          visibility: NotificationVisibility.public,
+        ),
+      );
+    }
+
+    return NotificationDetails(
       android: AndroidNotificationDetails(
-        _alertsChannelId,
-        _alertsChannelName,
-        channelDescription: _alertsChannelDescription,
+        AlertSoundConfig.notificationChannelIdForType(type),
+        AlertSoundConfig.notificationChannelNameForType(type),
+        channelDescription:
+            AlertSoundConfig.notificationChannelDescriptionForType(type),
         importance: Importance.max,
         priority: Priority.max,
         playSound: true,
-        sound: RawResourceAndroidNotificationSound(_alertsSoundResource),
         audioAttributesUsage: AudioAttributesUsage.alarm,
         fullScreenIntent: true,
         category: AndroidNotificationCategory.call,
-        visibility: NotificationVisibility.public,
-      ),
-    );
-  }
-
-  static NotificationDetails _allClearNotificationDetails() {
-    return const NotificationDetails(
-      android: AndroidNotificationDetails(
-        _allClearChannelId,
-        _allClearChannelName,
-        channelDescription: _allClearChannelDescription,
-        importance: Importance.defaultImportance,
-        priority: Priority.defaultPriority,
-        playSound: true,
         visibility: NotificationVisibility.public,
       ),
     );
@@ -523,6 +595,15 @@ class PushService implements PushSyncService {
       'Showing background notification',
       <String, Object?>{'messageId': message.messageId ?? ''},
     );
+    if (message.notification != null) {
+      AppLogger.info(
+        'PushService',
+        'Skipping local background notification because FCM notification payload already exists',
+        <String, Object?>{'messageId': message.messageId ?? ''},
+      );
+      return;
+    }
+
     try {
       await Firebase.initializeApp();
     } catch (_) {
@@ -538,9 +619,7 @@ class PushService implements PushSyncService {
     await _createAlertsChannel(plugin);
 
     final event = PushAlertEvent.fromRemoteMessage(message);
-    final details = event.type == 'all_clear'
-        ? _allClearNotificationDetails()
-        : _alertNotificationDetails();
+    final details = _notificationDetailsForType(event.type);
     await plugin.show(
       event.hashCode,
       event.title,

@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -11,6 +13,7 @@ import 'package:app/state/app_settings.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  DartPluginRegistrant.ensureInitialized();
   AppLogger.info('Main', 'Background push received', <String, Object?>{
     'messageId': message.messageId ?? '',
     'dataKeys': message.data.keys.toList(growable: false),

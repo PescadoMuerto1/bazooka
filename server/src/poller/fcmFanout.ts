@@ -2,7 +2,12 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
-import { getMessaging, type Messaging } from "firebase-admin/messaging";
+import {
+  getMessaging,
+  type AndroidNotification,
+  type Messaging,
+  type TokenMessage
+} from "firebase-admin/messaging";
 import { config } from "../config.js";
 import { mapAlertAreasToCityKeys } from "../data/cities.js";
 import { logError, logInfo, logWarn } from "../logger.js";
@@ -249,11 +254,8 @@ export async function fanoutAlertToSubscribedDevices(
         MAX_BODY_LENGTH
       );
       const alertType = deriveAlertType(alert);
-      const androidNotification: {
-        channelId: string;
-        visibility: "public";
-        sound?: string;
-      } = {
+      const shouldUseSystemNotification = alertType === "all_clear";
+      const androidNotification: AndroidNotification = {
         channelId: alertType === "all_clear" ? ALL_CLEAR_CHANNEL_ID : ALERTS_CHANNEL_ID,
         visibility: "public"
       };
@@ -261,13 +263,8 @@ export async function fanoutAlertToSubscribedDevices(
         androidNotification.sound = "alert_song";
       }
 
-      await messaging.send({
+      const message: TokenMessage = {
         token: device.fcmToken,
-        // Include a standard notification payload so closed-app delivery stays reliable in release builds.
-        notification: {
-          title: messageTitle,
-          body: messageBody
-        },
         data: {
           alertId: alert.alertId,
           type: alertType,
@@ -277,10 +274,22 @@ export async function fanoutAlertToSubscribedDevices(
           matchedCityKey: subscription.cityKey
         },
         android: {
-          priority: "high",
-          notification: androidNotification
+          priority: "high"
         }
-      });
+      };
+
+      if (shouldUseSystemNotification) {
+        message.notification = {
+          title: messageTitle,
+          body: messageBody
+        };
+        message.android = {
+          ...message.android,
+          notification: androidNotification
+        };
+      }
+
+      await messaging.send(message);
 
       await createDeliveryLog({
         alertId: alert.alertId,

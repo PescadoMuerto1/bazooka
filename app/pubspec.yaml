@@ -86,6 +86,7 @@ flutter:
   assets:
     - .env
     - assets/alert_song.mp3
+    - assets/pre_alert_song.mp3
     - assets/icon.png
     - assets/splash.png
     - assets/missile.png
