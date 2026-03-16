@@ -9,6 +9,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../state/app_settings.dart';
+import 'alert_sound_config.dart';
 import 'api_client.dart';
 import 'app_logger.dart';
 
@@ -184,19 +185,10 @@ class PushService implements PushSyncService {
 
   static const _deviceIdStorageKey = 'device_id';
   static const _appVersion = '1.0.0';
-  static const _alertsChannelId = 'bazooka_alerts_channel';
-  static const _alertsChannelName = 'Bazooka Alerts';
-  static const _alertsChannelDescription =
-      'High-priority Bazooka safety alerts';
-  static const _alertsSoundResource = 'alert_song';
-  static const _allClearChannelId = 'bazooka_all_clear_channel';
   static const _deviceStateChannel = MethodChannel(
     'com.bazooka.alerts/device_state',
   );
   static const _duplicateAlertWindow = Duration(seconds: 8);
-  static const _allClearChannelName = 'All Clear';
-  static const _allClearChannelDescription =
-      'Notifications when it is safe to leave the shelter';
   static PushAlertEvent? _pendingLaunchAlertEvent;
 
   final FirebaseMessaging _messaging;
@@ -482,18 +474,31 @@ class PushService implements PushSyncService {
     FlutterLocalNotificationsPlugin plugin,
   ) async {
     const alertChannel = AndroidNotificationChannel(
-      _alertsChannelId,
-      _alertsChannelName,
-      description: _alertsChannelDescription,
+      AlertSoundConfig.alertsChannelId,
+      AlertSoundConfig.alertsChannelName,
+      description: AlertSoundConfig.alertsChannelDescription,
       importance: Importance.max,
       playSound: true,
-      sound: RawResourceAndroidNotificationSound(_alertsSoundResource),
+      sound: RawResourceAndroidNotificationSound(
+        AlertSoundConfig.alertsSoundResource,
+      ),
+    );
+
+    const preAlertChannel = AndroidNotificationChannel(
+      AlertSoundConfig.preAlertChannelId,
+      AlertSoundConfig.preAlertChannelName,
+      description: AlertSoundConfig.preAlertChannelDescription,
+      importance: Importance.max,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound(
+        AlertSoundConfig.preAlertSoundResource,
+      ),
     );
 
     const allClearChannel = AndroidNotificationChannel(
-      _allClearChannelId,
-      _allClearChannelName,
-      description: _allClearChannelDescription,
+      AlertSoundConfig.allClearChannelId,
+      AlertSoundConfig.allClearChannelName,
+      description: AlertSoundConfig.allClearChannelDescription,
       importance: Importance.defaultImportance,
       playSound: true,
     );
@@ -503,36 +508,44 @@ class PushService implements PushSyncService {
           AndroidFlutterLocalNotificationsPlugin
         >();
     await androidPlugin?.createNotificationChannel(alertChannel);
+    await androidPlugin?.createNotificationChannel(preAlertChannel);
     await androidPlugin?.createNotificationChannel(allClearChannel);
     AppLogger.info('PushService', 'Android notification channels ensured');
   }
 
-  static NotificationDetails _alertNotificationDetails() {
-    return const NotificationDetails(
+  static NotificationDetails _notificationDetailsForType(String type) {
+    if (AlertSoundConfig.isAllClear(type)) {
+      return const NotificationDetails(
+        android: AndroidNotificationDetails(
+          AlertSoundConfig.allClearChannelId,
+          AlertSoundConfig.allClearChannelName,
+          channelDescription: AlertSoundConfig.allClearChannelDescription,
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+          playSound: true,
+          visibility: NotificationVisibility.public,
+        ),
+      );
+    }
+
+    final soundResource = AlertSoundConfig.notificationSoundResourceForType(
+      type,
+    );
+    return NotificationDetails(
       android: AndroidNotificationDetails(
-        _alertsChannelId,
-        _alertsChannelName,
-        channelDescription: _alertsChannelDescription,
+        AlertSoundConfig.notificationChannelIdForType(type),
+        AlertSoundConfig.notificationChannelNameForType(type),
+        channelDescription:
+            AlertSoundConfig.notificationChannelDescriptionForType(type),
         importance: Importance.max,
         priority: Priority.max,
         playSound: true,
+        sound: soundResource == null
+            ? null
+            : RawResourceAndroidNotificationSound(soundResource),
         audioAttributesUsage: AudioAttributesUsage.alarm,
         fullScreenIntent: true,
         category: AndroidNotificationCategory.call,
-        visibility: NotificationVisibility.public,
-      ),
-    );
-  }
-
-  static NotificationDetails _allClearNotificationDetails() {
-    return const NotificationDetails(
-      android: AndroidNotificationDetails(
-        _allClearChannelId,
-        _allClearChannelName,
-        channelDescription: _allClearChannelDescription,
-        importance: Importance.defaultImportance,
-        priority: Priority.defaultPriority,
-        playSound: true,
         visibility: NotificationVisibility.public,
       ),
     );
@@ -571,9 +584,7 @@ class PushService implements PushSyncService {
     await _createAlertsChannel(plugin);
 
     final event = PushAlertEvent.fromRemoteMessage(message);
-    final details = event.type == 'all_clear'
-        ? _allClearNotificationDetails()
-        : _alertNotificationDetails();
+    final details = _notificationDetailsForType(event.type);
     await plugin.show(
       event.hashCode,
       event.title,

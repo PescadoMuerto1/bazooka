@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../services/alert_sound_config.dart';
 import '../services/app_logger.dart';
 
 class NotificationPopupScreen extends StatefulWidget {
@@ -53,7 +54,9 @@ class _NotificationPopupScreenState extends State<NotificationPopupScreen>
   Future<void> _startAlertSong() async {
     try {
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-      await _audioPlayer.play(AssetSource('alert_song.mp3'));
+      await _audioPlayer.play(
+        AssetSource(AlertSoundConfig.popupAssetForType(widget.type)),
+      );
       AppLogger.info('NotificationPopup', 'Alert song started');
     } catch (error, stackTrace) {
       // Keep popup functional even if playback fails on a specific device.
@@ -144,7 +147,7 @@ class _NotificationPopupScreenState extends State<NotificationPopupScreen>
                     Text(
                       areaText,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: const Color(0xFF1976D2).withOpacity(0.9),
+                        color: const Color(0xFF1976D2).withValues(alpha: 0.9),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -153,7 +156,7 @@ class _NotificationPopupScreenState extends State<NotificationPopupScreen>
                       Text(
                         widget.body,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: const Color(0xFF1976D2).withOpacity(0.8),
+                          color: const Color(0xFF1976D2).withValues(alpha: 0.8),
                         ),
                         textAlign: TextAlign.center,
                       ),
