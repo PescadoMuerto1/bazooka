@@ -30,4 +30,14 @@ void main() {
       isNull,
     );
   });
+
+  test('popup playback uses alarm-focused max-volume settings', () {
+    expect(AlertSoundConfig.popupVolume, 1.0);
+    expect(AlertSoundConfig.popupAudioContext.android.usageType.name, 'alarm');
+    expect(
+      AlertSoundConfig.popupAudioContext.android.contentType.name,
+      'sonification',
+    );
+    expect(AlertSoundConfig.popupAudioContext.android.stayAwake, isTrue);
+  });
 }

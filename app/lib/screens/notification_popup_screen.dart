@@ -54,6 +54,8 @@ class _NotificationPopupScreenState extends State<NotificationPopupScreen>
   Future<void> _startAlertSong() async {
     try {
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      await _audioPlayer.setAudioContext(AlertSoundConfig.popupAudioContext);
+      await _audioPlayer.setVolume(AlertSoundConfig.popupVolume);
       await _audioPlayer.play(
         AssetSource(AlertSoundConfig.popupAssetForType(widget.type)),
       );

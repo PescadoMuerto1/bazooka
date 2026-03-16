@@ -1,3 +1,5 @@
+import 'package:audioplayers/audioplayers.dart';
+
 class AlertSoundConfig {
   static const alertsChannelId = 'bazooka_alerts_channel';
   static const alertsChannelName = 'Bazooka Alerts';
@@ -17,6 +19,16 @@ class AlertSoundConfig {
 
   static const defaultPopupAsset = 'alert_song.mp3';
   static const preAlertPopupAsset = 'pre_alert_song.mp3';
+  static const popupVolume = 1.0;
+
+  static final popupAudioContext = AudioContext(
+    android: AudioContextAndroid(
+      stayAwake: true,
+      contentType: AndroidContentType.sonification,
+      usageType: AndroidUsageType.alarm,
+      audioFocus: AndroidAudioFocus.gain,
+    ),
+  );
 
   static bool isPreAlert(String type) => type == 'pre_alert';
 
