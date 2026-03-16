@@ -1,4 +1,5 @@
 import 'package:app/services/alert_sound_config.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -33,6 +34,7 @@ void main() {
 
   test('popup playback uses alarm-focused max-volume settings', () {
     expect(AlertSoundConfig.popupVolume, 1.0);
+    expect(AlertSoundConfig.popupReleaseMode, ReleaseMode.release);
     expect(AlertSoundConfig.popupAudioContext.android.usageType.name, 'alarm');
     expect(
       AlertSoundConfig.popupAudioContext.android.contentType.name,

@@ -20,6 +20,7 @@ class AlertSoundConfig {
   static const defaultPopupAsset = 'alert_song.mp3';
   static const preAlertPopupAsset = 'pre_alert_song.mp3';
   static const popupVolume = 1.0;
+  static const popupReleaseMode = ReleaseMode.release;
 
   static final popupAudioContext = AudioContext(
     android: AudioContextAndroid(
