@@ -135,6 +135,7 @@ class _AlertsScreenState extends State<AlertsScreen>
           areasCount: event.areasCount,
           matchedCityKey: event.matchedCityKey,
           areas: event.areas,
+          shouldPlaySound: event.shouldPlaySound,
         ),
       ),
     );

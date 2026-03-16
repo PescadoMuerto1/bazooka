@@ -23,6 +23,7 @@ class PushAlertEvent {
     required this.matchedCityKey,
     required this.areas,
     required this.shouldDisplayPopup,
+    required this.shouldPlaySound,
   });
 
   final String alertId;
@@ -33,6 +34,7 @@ class PushAlertEvent {
   final String matchedCityKey;
   final List<String> areas;
   final bool shouldDisplayPopup;
+  final bool shouldPlaySound;
 
   String dedupeKey() {
     return <String>[
@@ -62,6 +64,7 @@ class PushAlertEvent {
   factory PushAlertEvent.fromRemoteMessage(
     RemoteMessage message, {
     bool shouldDisplayPopup = false,
+    bool shouldPlaySound = true,
   }) {
     final notification = message.notification;
     final rawAreas = message.data['areas'] ?? '';
@@ -92,12 +95,14 @@ class PushAlertEvent {
       matchedCityKey: matchedCityKey,
       areas: areas,
       shouldDisplayPopup: shouldDisplayPopup,
+      shouldPlaySound: shouldPlaySound,
     );
   }
 
   factory PushAlertEvent.fromPayloadJson(
     String payload, {
     bool shouldDisplayPopup = false,
+    bool shouldPlaySound = false,
   }) {
     try {
       final decoded = jsonDecode(payload);
@@ -111,6 +116,7 @@ class PushAlertEvent {
           matchedCityKey: '',
           areas: <String>[],
           shouldDisplayPopup: shouldDisplayPopup,
+          shouldPlaySound: shouldPlaySound,
         );
       }
 
@@ -136,6 +142,7 @@ class PushAlertEvent {
         matchedCityKey: matchedCityKey,
         areas: areas,
         shouldDisplayPopup: shouldDisplayPopup,
+        shouldPlaySound: shouldPlaySound,
       );
     } catch (_) {
       return PushAlertEvent(
@@ -147,6 +154,7 @@ class PushAlertEvent {
         matchedCityKey: '',
         areas: <String>[],
         shouldDisplayPopup: shouldDisplayPopup,
+        shouldPlaySound: shouldPlaySound,
       );
     }
   }
@@ -245,8 +253,8 @@ class PushService implements PushSyncService {
 
     await _initializeLocalNotifications();
     await _initializePushEventListeners();
-    _emitPendingLaunchEventIfAny();
     await _localNotificationsPlugin.cancelAll();
+    _emitPendingLaunchEventIfAny();
 
     try {
       await _messaging.requestPermission(alert: true, badge: true, sound: true);
@@ -357,7 +365,11 @@ class PushService implements PushSyncService {
       );
       unawaited(_localNotificationsPlugin.cancelAll());
       _emitAlertEvent(
-        PushAlertEvent.fromRemoteMessage(message, shouldDisplayPopup: true),
+        PushAlertEvent.fromRemoteMessage(
+          message,
+          shouldDisplayPopup: true,
+          shouldPlaySound: true,
+        ),
       );
     });
 
@@ -366,7 +378,11 @@ class PushService implements PushSyncService {
         'messageId': message.messageId ?? '',
       });
       _emitAlertEvent(
-        PushAlertEvent.fromRemoteMessage(message, shouldDisplayPopup: false),
+        PushAlertEvent.fromRemoteMessage(
+          message,
+          shouldDisplayPopup: false,
+          shouldPlaySound: false,
+        ),
       );
     });
 
@@ -381,6 +397,7 @@ class PushService implements PushSyncService {
         PushAlertEvent.fromRemoteMessage(
           initialMessage,
           shouldDisplayPopup: true,
+          shouldPlaySound: false,
         ),
       );
     }
@@ -396,8 +413,15 @@ class PushService implements PushSyncService {
       'Notification response received',
       <String, Object?>{'isDeviceLocked': isLocked},
     );
+    if (isLocked) {
+      await _localNotificationsPlugin.cancelAll();
+    }
     _emitAlertEvent(
-      PushAlertEvent.fromPayloadJson(payload, shouldDisplayPopup: isLocked),
+      PushAlertEvent.fromPayloadJson(
+        payload,
+        shouldDisplayPopup: isLocked,
+        shouldPlaySound: isLocked,
+      ),
     );
   }
 
@@ -466,6 +490,7 @@ class PushService implements PushSyncService {
     _pendingLaunchAlertEvent = PushAlertEvent.fromPayloadJson(
       payload,
       shouldDisplayPopup: true,
+      shouldPlaySound: true,
     );
     AppLogger.info('PushService', 'Captured launch payload from notification');
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -14,6 +15,7 @@ class NotificationPopupScreen extends StatefulWidget {
     required this.areasCount,
     required this.matchedCityKey,
     required this.areas,
+    this.shouldPlaySound = true,
   });
 
   final String title;
@@ -22,6 +24,7 @@ class NotificationPopupScreen extends StatefulWidget {
   final int areasCount;
   final String matchedCityKey;
   final List<String> areas;
+  final bool shouldPlaySound;
 
   @override
   State<NotificationPopupScreen> createState() =>
@@ -47,8 +50,11 @@ class _NotificationPopupScreenState extends State<NotificationPopupScreen>
       'type': widget.type,
       'areasCount': widget.areasCount,
       'matchedCityKey': widget.matchedCityKey,
+      'shouldPlaySound': widget.shouldPlaySound,
     });
-    _startAlertSong();
+    if (widget.shouldPlaySound) {
+      _startAlertSong();
+    }
   }
 
   Future<void> _startAlertSong() async {
@@ -71,11 +77,24 @@ class _NotificationPopupScreenState extends State<NotificationPopupScreen>
     }
   }
 
+  Future<void> _stopAlertSong() async {
+    try {
+      await _audioPlayer.stop();
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'NotificationPopup',
+        'Alert song stop failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
   @override
   void dispose() {
     AppLogger.info('NotificationPopup', 'Popup disposed');
     _animationController.dispose();
-    _audioPlayer.stop();
+    unawaited(_stopAlertSong());
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -177,12 +196,17 @@ class _NotificationPopupScreenState extends State<NotificationPopupScreen>
                       ),
                       icon: const Icon(Icons.close),
                       label: const Text('DISMISS'),
-                      onPressed: () {
+                      onPressed: () async {
                         AppLogger.info(
                           'NotificationPopup',
                           'Close button pressed',
                         );
-                        Navigator.of(context).pop();
+                        final navigator = Navigator.of(context);
+                        await _stopAlertSong();
+                        if (!mounted) {
+                          return;
+                        }
+                        navigator.pop();
                       },
                     ),
                   ],
