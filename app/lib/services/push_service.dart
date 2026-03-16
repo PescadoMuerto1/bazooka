@@ -197,6 +197,16 @@ class PushService implements PushSyncService {
     'com.bazooka.alerts/device_state',
   );
   static const _duplicateAlertWindow = Duration(seconds: 8);
+  static const _legacyAlertsChannelIds = <String>[
+    'bazooka_alerts_channel',
+    'bazooka_alerts_channel_v2',
+    'bazooka_alerts_channel_v3',
+    'bazooka_alerts_channel_v4',
+  ];
+  static const _legacyPreAlertChannelIds = <String>[
+    'bazooka_pre_alert_channel',
+    'bazooka_pre_alert_channel_v2',
+  ];
   static PushAlertEvent? _pendingLaunchAlertEvent;
 
   final FirebaseMessaging _messaging;
@@ -532,6 +542,12 @@ class PushService implements PushSyncService {
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >();
+    for (final channelId in _legacyAlertsChannelIds) {
+      await androidPlugin?.deleteNotificationChannel(channelId);
+    }
+    for (final channelId in _legacyPreAlertChannelIds) {
+      await androidPlugin?.deleteNotificationChannel(channelId);
+    }
     await androidPlugin?.createNotificationChannel(alertChannel);
     await androidPlugin?.createNotificationChannel(preAlertChannel);
     await androidPlugin?.createNotificationChannel(allClearChannel);
@@ -553,9 +569,6 @@ class PushService implements PushSyncService {
       );
     }
 
-    final soundResource = AlertSoundConfig.notificationSoundResourceForType(
-      type,
-    );
     return NotificationDetails(
       android: AndroidNotificationDetails(
         AlertSoundConfig.notificationChannelIdForType(type),
@@ -565,9 +578,6 @@ class PushService implements PushSyncService {
         importance: Importance.max,
         priority: Priority.max,
         playSound: true,
-        sound: soundResource == null
-            ? null
-            : RawResourceAndroidNotificationSound(soundResource),
         audioAttributesUsage: AudioAttributesUsage.alarm,
         fullScreenIntent: true,
         category: AndroidNotificationCategory.call,

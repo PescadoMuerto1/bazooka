@@ -1,12 +1,12 @@
 import 'package:audioplayers/audioplayers.dart';
 
 class AlertSoundConfig {
-  static const alertsChannelId = 'bazooka_alerts_channel';
+  static const alertsChannelId = 'bazooka_alerts_channel_v5';
   static const alertsChannelName = 'Bazooka Alerts';
   static const alertsChannelDescription = 'High-priority Bazooka safety alerts';
   static const alertsSoundResource = 'alert_song';
 
-  static const preAlertChannelId = 'bazooka_pre_alert_channel';
+  static const preAlertChannelId = 'bazooka_pre_alert_channel_v5';
   static const preAlertChannelName = 'Bazooka Pre-Alerts';
   static const preAlertChannelDescription =
       'High-priority Bazooka pre-alert warnings';
