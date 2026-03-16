@@ -14,6 +14,7 @@ import 'app_logger.dart';
 
 class PushAlertEvent {
   const PushAlertEvent({
+    required this.alertId,
     required this.title,
     required this.body,
     required this.type,
@@ -23,6 +24,7 @@ class PushAlertEvent {
     required this.shouldDisplayPopup,
   });
 
+  final String alertId;
   final String title;
   final String body;
   final String type;
@@ -30,6 +32,18 @@ class PushAlertEvent {
   final String matchedCityKey;
   final List<String> areas;
   final bool shouldDisplayPopup;
+
+  String dedupeKey() {
+    return <String>[
+      alertId,
+      title,
+      body,
+      type,
+      matchedCityKey,
+      areasCount.toString(),
+      areas.join(','),
+    ].join('|');
+  }
 
   static int _parseAreasCount(Object? rawValue, int fallback) {
     if (rawValue == null) {
@@ -59,12 +73,14 @@ class PushAlertEvent {
     final matchedCityKey =
         message.data['matchedCityKey']?.toString().trim() ?? '';
     final type = message.data['type']?.toString().trim() ?? 'update';
+    final alertId = message.data['alertId']?.toString().trim() ?? '';
     final areasCount = _parseAreasCount(
       message.data['areasCount'],
       areas.length,
     );
 
     return PushAlertEvent(
+      alertId: alertId,
       title:
           notification?.title ??
           message.data['title']?.toString() ??
@@ -86,6 +102,7 @@ class PushAlertEvent {
       final decoded = jsonDecode(payload);
       if (decoded is! Map<String, dynamic>) {
         return PushAlertEvent(
+          alertId: '',
           title: 'Bazooka Alert',
           body: '',
           type: 'update',
@@ -105,10 +122,12 @@ class PushAlertEvent {
                 .toList(growable: false)
           : const <String>[];
       final type = decoded['type']?.toString().trim() ?? 'update';
+      final alertId = decoded['alertId']?.toString().trim() ?? '';
       final matchedCityKey = decoded['matchedCityKey']?.toString().trim() ?? '';
       final areasCount = _parseAreasCount(decoded['areasCount'], areas.length);
 
       return PushAlertEvent(
+        alertId: alertId,
         title: decoded['title']?.toString() ?? 'Bazooka Alert',
         body: decoded['body']?.toString() ?? '',
         type: type.isEmpty ? 'update' : type,
@@ -119,6 +138,7 @@ class PushAlertEvent {
       );
     } catch (_) {
       return PushAlertEvent(
+        alertId: '',
         title: 'Bazooka Alert',
         body: '',
         type: 'update',
@@ -132,6 +152,7 @@ class PushAlertEvent {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      'alertId': alertId,
       'title': title,
       'body': body,
       'type': type,
@@ -172,6 +193,7 @@ class PushService implements PushSyncService {
   static const _deviceStateChannel = MethodChannel(
     'com.bazooka.alerts/device_state',
   );
+  static const _duplicateAlertWindow = Duration(seconds: 8);
   static const _allClearChannelName = 'All Clear';
   static const _allClearChannelDescription =
       'Notifications when it is safe to leave the shelter';
@@ -189,6 +211,7 @@ class PushService implements PushSyncService {
   bool _initialized = false;
   bool _localNotificationsInitialized = false;
   bool _pushListenersInitialized = false;
+  final Map<String, DateTime> _recentAlertEventTimes = <String, DateTime>{};
 
   @override
   Future<void> initializeAndSync({
@@ -341,7 +364,7 @@ class PushService implements PushSyncService {
         <String, Object?>{'messageId': message.messageId ?? ''},
       );
       unawaited(_localNotificationsPlugin.cancelAll());
-      _alertEventsController.add(
+      _emitAlertEvent(
         PushAlertEvent.fromRemoteMessage(message, shouldDisplayPopup: true),
       );
     });
@@ -350,7 +373,7 @@ class PushService implements PushSyncService {
       AppLogger.info('PushService', 'Push opened app', <String, Object?>{
         'messageId': message.messageId ?? '',
       });
-      _alertEventsController.add(
+      _emitAlertEvent(
         PushAlertEvent.fromRemoteMessage(message, shouldDisplayPopup: false),
       );
     });
@@ -362,7 +385,7 @@ class PushService implements PushSyncService {
         'Initial push message found',
         <String, Object?>{'messageId': initialMessage.messageId ?? ''},
       );
-      _alertEventsController.add(
+      _emitAlertEvent(
         PushAlertEvent.fromRemoteMessage(
           initialMessage,
           shouldDisplayPopup: true,
@@ -374,31 +397,6 @@ class PushService implements PushSyncService {
     AppLogger.info('PushService', 'Push listeners initialized');
   }
 
-  Future<void> _showForegroundNotification(RemoteMessage message) async {
-    final event = PushAlertEvent.fromRemoteMessage(message);
-    AppLogger.info(
-      'PushService',
-      'Showing foreground notification',
-      <String, Object?>{
-        'title': event.title,
-        'areasCount': event.areasCount,
-        'type': event.type,
-      },
-    );
-
-    final details = event.type == 'all_clear'
-        ? _allClearNotificationDetails()
-        : _alertNotificationDetails();
-
-    await _localNotificationsPlugin.show(
-      event.hashCode,
-      event.title,
-      event.body,
-      details,
-      payload: jsonEncode(event.toJson()),
-    );
-  }
-
   Future<void> _handleNotificationResponse(String payload) async {
     final isLocked = await _isDeviceLocked();
     AppLogger.info(
@@ -406,9 +404,36 @@ class PushService implements PushSyncService {
       'Notification response received',
       <String, Object?>{'isDeviceLocked': isLocked},
     );
-    _alertEventsController.add(
+    _emitAlertEvent(
       PushAlertEvent.fromPayloadJson(payload, shouldDisplayPopup: isLocked),
     );
+  }
+
+  void _emitAlertEvent(PushAlertEvent event) {
+    final now = DateTime.now();
+    _recentAlertEventTimes.removeWhere(
+      (_, timestamp) => now.difference(timestamp) > _duplicateAlertWindow,
+    );
+
+    final dedupeKey = event.dedupeKey();
+    final previousEmission = _recentAlertEventTimes[dedupeKey];
+    if (previousEmission != null &&
+        now.difference(previousEmission) <= _duplicateAlertWindow) {
+      AppLogger.warn(
+        'PushService',
+        'Suppressing duplicate alert event',
+        <String, Object?>{
+          'alertId': event.alertId,
+          'type': event.type,
+          'matchedCityKey': event.matchedCityKey,
+          'shouldDisplayPopup': event.shouldDisplayPopup,
+        },
+      );
+      return;
+    }
+
+    _recentAlertEventTimes[dedupeKey] = now;
+    _alertEventsController.add(event);
   }
 
   static Future<bool> _isDeviceLocked() async {
@@ -435,7 +460,7 @@ class PushService implements PushSyncService {
 
     _pendingLaunchAlertEvent = null;
     AppLogger.info('PushService', 'Emitting pending launch notification event');
-    _alertEventsController.add(pending);
+    _emitAlertEvent(pending);
   }
 
   Future<void> _captureNotificationLaunchPayload() async {
@@ -522,6 +547,15 @@ class PushService implements PushSyncService {
       'Showing background notification',
       <String, Object?>{'messageId': message.messageId ?? ''},
     );
+    if (message.notification != null) {
+      AppLogger.info(
+        'PushService',
+        'Skipping local background notification because FCM notification payload already exists',
+        <String, Object?>{'messageId': message.messageId ?? ''},
+      );
+      return;
+    }
+
     try {
       await Firebase.initializeApp();
     } catch (_) {
