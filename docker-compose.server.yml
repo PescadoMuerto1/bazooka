@@ -1,0 +1,26 @@
+services:
+  server:
+    container_name: bazooka-server-container
+    build:
+      context: ./server
+    env_file:
+      - ./server/server.env
+    environment:
+      FIREBASE_SERVICE_ACCOUNT_PATH: /run/secrets/serviceAccountKey.json
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./server/serviceAccountKey.json:/run/secrets/serviceAccountKey.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

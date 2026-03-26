@@ -80,6 +80,54 @@ When backend is running, open:
 
 Use this page to trigger test alerts (preset + custom) and verify popup behavior in the app.
 
+## Server Deploy
+
+For a server deploy, Bazooka can run as a single Docker container against MongoDB Atlas.
+
+1. Create `server/server.env` on the server and set:
+
+```env
+PORT=3000
+MONGO_URI=mongodb+srv://<username>:<password>@<cluster-url>/bazooka?retryWrites=true&w=majority
+
+OREF_FEED_URL=https://www.oref.org.il/warningMessages/alert/Alerts.json
+OREF_POLL_INTERVAL_MS=3000
+OREF_REQUEST_TIMEOUT_MS=2000
+OREF_POLLER_ENABLED=true
+OREF_ALERTS_LOG_PATH=logs/oref-alerts.log
+SYSTEM_LOG_PATH=logs/system.log
+
+DEV_TOOLS_ENABLED=false
+
+FCM_ENABLED=true
+FIREBASE_SERVICE_ACCOUNT_PATH=/run/secrets/serviceAccountKey.json
+
+WRITE_RATE_LIMIT_WINDOW_MS=60000
+WRITE_RATE_LIMIT_MAX=120
+```
+
+2. Place the Firebase Admin SDK JSON at `server/serviceAccountKey.json`.
+3. Start the backend:
+
+```bash
+docker compose -f docker-compose.server.yml up -d --build
+```
+
+4. Verify it locally on the server:
+
+```bash
+curl http://127.0.0.1:3000/health
+docker compose -f docker-compose.server.yml logs -f server
+```
+
+5. Expose it through your existing Cloudflare Tunnel with a route like:
+
+```text
+bazooka-api.yourdomain.com -> http://127.0.0.1:3000
+```
+
+6. Update the app `BACKEND_BASE_URL` to the public HTTPS hostname before building a release.
+
 ## End-to-End Smoke Checklist
 
 1. Register at least one device and city subscription (`/register-device`, `/subscription`).

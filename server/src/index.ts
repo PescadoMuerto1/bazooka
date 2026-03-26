@@ -42,7 +42,6 @@ app.get("/", (_req, res) => {
 async function startServer(): Promise<void> {
   logInfo("server_starting", {
     port: config.port,
-    mongoUri: config.mongoUri,
     orefPollerEnabled: config.orefPollerEnabled
   });
 
