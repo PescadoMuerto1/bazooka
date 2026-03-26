@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -197,6 +198,8 @@ class PushService implements PushSyncService {
     'com.bazooka.alerts/device_state',
   );
   static const _duplicateAlertWindow = Duration(seconds: 8);
+  static const _recentNotificationStorageKey =
+      'recent_background_notification_times';
   static const _legacyAlertsChannelIds = <String>[
     'bazooka_alerts_channel',
     'bazooka_alerts_channel_v2',
@@ -489,6 +492,51 @@ class PushService implements PushSyncService {
     _emitAlertEvent(pending);
   }
 
+  @visibleForTesting
+  static Future<bool> shouldSuppressRecentNotification(
+    PushAlertEvent event, {
+    SharedPreferences? prefs,
+    DateTime? now,
+  }) async {
+    final sharedPreferences = prefs ?? await SharedPreferences.getInstance();
+    final currentTime = now ?? DateTime.now();
+    final cutoff = currentTime.subtract(_duplicateAlertWindow);
+    final storedRaw = sharedPreferences.getString(
+      _recentNotificationStorageKey,
+    );
+    final stored = <String, int>{};
+
+    if (storedRaw != null && storedRaw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(storedRaw);
+        if (decoded is Map<String, dynamic>) {
+          for (final entry in decoded.entries) {
+            final timestamp = int.tryParse(entry.value.toString());
+            if (timestamp == null) {
+              continue;
+            }
+
+            final seenAt = DateTime.fromMillisecondsSinceEpoch(timestamp);
+            if (!seenAt.isBefore(cutoff)) {
+              stored[entry.key] = timestamp;
+            }
+          }
+        }
+      } catch (_) {
+        // Ignore corrupted stored dedupe state and replace it below.
+      }
+    }
+
+    final dedupeKey = event.dedupeKey();
+    final previousTimestamp = stored[dedupeKey];
+    stored[dedupeKey] = currentTime.millisecondsSinceEpoch;
+    await sharedPreferences.setString(
+      _recentNotificationStorageKey,
+      jsonEncode(stored),
+    );
+    return previousTimestamp != null;
+  }
+
   Future<void> _captureNotificationLaunchPayload() async {
     final launchDetails = await _localNotificationsPlugin
         .getNotificationAppLaunchDetails();
@@ -619,6 +667,18 @@ class PushService implements PushSyncService {
     await _createAlertsChannel(plugin);
 
     final event = PushAlertEvent.fromRemoteMessage(message);
+    if (await shouldSuppressRecentNotification(event)) {
+      AppLogger.warn(
+        'PushService',
+        'Suppressing duplicate background notification',
+        <String, Object?>{
+          'alertId': event.alertId,
+          'type': event.type,
+          'matchedCityKey': event.matchedCityKey,
+        },
+      );
+      return;
+    }
     final details = _notificationDetailsForType(event.type);
     await plugin.show(
       event.hashCode,
