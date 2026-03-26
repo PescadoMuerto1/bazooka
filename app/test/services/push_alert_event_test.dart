@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:app/services/push_service.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   test('preserves alertId when a local notification payload is decoded', () {
@@ -80,6 +81,48 @@ void main() {
 
       expect(decoded.shouldDisplayPopup, isTrue);
       expect(decoded.shouldPlaySound, isTrue);
+    },
+  );
+
+  test(
+    'duplicate background notifications are suppressed for a short window',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final prefs = await SharedPreferences.getInstance();
+      const event = PushAlertEvent(
+        alertId: 'alert-789',
+        title: 'Bazooka Alert',
+        body: 'Take shelter now',
+        type: 'rocket',
+        areasCount: 1,
+        matchedCityKey: 'tel-aviv',
+        areas: <String>['Tel Aviv'],
+        shouldDisplayPopup: true,
+        shouldPlaySound: true,
+      );
+
+      final firstSuppressed =
+          await PushService.shouldSuppressRecentNotification(
+            event,
+            prefs: prefs,
+            now: DateTime(2026, 3, 16, 20, 0, 0),
+          );
+      final secondSuppressed =
+          await PushService.shouldSuppressRecentNotification(
+            event,
+            prefs: prefs,
+            now: DateTime(2026, 3, 16, 20, 0, 3),
+          );
+      final thirdSuppressed =
+          await PushService.shouldSuppressRecentNotification(
+            event,
+            prefs: prefs,
+            now: DateTime(2026, 3, 16, 20, 0, 12),
+          );
+
+      expect(firstSuppressed, isFalse);
+      expect(secondSuppressed, isTrue);
+      expect(thirdSuppressed, isFalse);
     },
   );
 }
