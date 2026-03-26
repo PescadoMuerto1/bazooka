@@ -1,6 +1,11 @@
-FROM node:22-slim AS builder
+FROM node:22-slim AS base
 
 WORKDIR /app
+
+RUN npm install -g npm@11.11.0
+
+
+FROM base AS builder
 
 COPY package*.json ./
 RUN npm ci
@@ -9,7 +14,7 @@ COPY . .
 RUN npm run build
 
 
-FROM node:22-slim AS runner
+FROM base AS runner
 
 WORKDIR /app
 
