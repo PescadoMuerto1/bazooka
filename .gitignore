@@ -1,5 +1,8 @@
 BAZOOKA_APP_PLAN.md
 IMPLEMENTATION_PLAN.md
+server/.env
+server/server.env
+server/logs/
 server/node_modules/
 server/dist/
 server/serviceAccountKey.json
