@@ -1,0 +1,36 @@
+name: Deploy Bazooka Server
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - server/**
+      - docker-compose.server.yml
+      - .github/workflows/deploy-server.yml
+  workflow_dispatch:
+
+concurrency:
+  group: bazooka-server-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, prod]
+    timeout-minutes: 20
+
+    steps:
+      - name: Pull latest code on server
+        working-directory: /home/moshe/apps/bazooka
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git pull --ff-only origin main
+
+      - name: Rebuild and restart server
+        working-directory: /home/moshe/apps/bazooka
+        run: docker compose -f docker-compose.server.yml up -d --build
+
+      - name: Show server status
+        working-directory: /home/moshe/apps/bazooka
+        run: docker compose -f docker-compose.server.yml ps
